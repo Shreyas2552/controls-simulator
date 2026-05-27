@@ -238,6 +238,7 @@ tab_labels = [
     "📊 Bode Plot",
     "🔍 Stability Analysis",
     "🔈 Filters",
+    "⭕ Nyquist",
     "📚 Theory",
 ]
 tabs = st.tabs(tab_labels)
@@ -648,9 +649,121 @@ with tabs[4]:
         st.error(f"Filter design error: {e}")
 
 # ─────────────────────────────────────────────────────────────
-# TAB 6 — Theory Guide
+# TAB 6 — Nyquist Diagram
 # ─────────────────────────────────────────────────────────────
 with tabs[5]:
+    st.markdown(
+        "The **Nyquist diagram** plots L(jω) in the complex plane for ω ∈ (−∞, +∞). "
+        "The **Nyquist stability criterion**: closed-loop is stable iff the number of "
+        "counter-clockwise encirclements of −1 equals the number of open-loop RHP poles.  "
+        "For typical stable open-loop plants this means the −1 point must **not** be encircled."
+    )
+
+    try:
+        omega_nyq = np.logspace(-3, 4, 3000)
+        H_pos = (np.polyval(ol_num, 1j * omega_nyq)
+                 / np.polyval(ol_den, 1j * omega_nyq))
+
+        fig_nyq = go.Figure()
+
+        # ω > 0 branch
+        fig_nyq.add_trace(go.Scatter(
+            x=H_pos.real, y=H_pos.imag,
+            mode="lines", name="L(jω), ω > 0",
+            line=dict(color="#2196F3", width=2),
+        ))
+        # ω < 0 branch (mirror image)
+        fig_nyq.add_trace(go.Scatter(
+            x=H_pos.real, y=-H_pos.imag,
+            mode="lines", name="L(jω), ω < 0",
+            line=dict(color="#4CAF50", width=1.5, dash="dash"),
+        ))
+
+        # Critical point −1
+        fig_nyq.add_trace(go.Scatter(
+            x=[-1], y=[0], mode="markers", name="Critical: −1 + 0j",
+            marker=dict(symbol="x", size=18, color="#F44336", line=dict(width=3)),
+        ))
+
+        # Phase-margin circle (unit circle centred at −1)
+        if margins.get("wgc"):
+            wgc = margins["wgc"]
+            H_gco = np.polyval(ol_num, 1j * wgc) / np.polyval(ol_den, 1j * wgc)
+            pm_r = abs(H_gco + 1)           # distance from −1 to L(jωgc)
+            theta_c = np.linspace(0, 2 * np.pi, 200)
+            fig_nyq.add_trace(go.Scatter(
+                x=-1 + pm_r * np.cos(theta_c),
+                y=pm_r * np.sin(theta_c),
+                mode="lines", name=f"PM circle (r={pm_r:.3f})",
+                line=dict(color=C["pm_line"], dash="dot", width=1),
+            ))
+            fig_nyq.add_trace(go.Scatter(
+                x=[H_gco.real], y=[H_gco.imag],
+                mode="markers", name=f"L(jωgc), ω={wgc:.2f} rad/s",
+                marker=dict(symbol="circle", size=10, color=C["pm_line"]),
+            ))
+
+        # Gain-crossover annotation on ω > 0 branch
+        if margins.get("wpc"):
+            wpc = margins["wpc"]
+            H_pco = np.polyval(ol_num, 1j * wpc) / np.polyval(ol_den, 1j * wpc)
+            fig_nyq.add_trace(go.Scatter(
+                x=[H_pco.real], y=[H_pco.imag],
+                mode="markers", name=f"L(jωpc), ω={wpc:.2f} rad/s",
+                marker=dict(symbol="diamond", size=10, color=C["gm_line"]),
+            ))
+
+        # Auto-scale axes to keep −1 visible
+        all_real = np.concatenate([H_pos.real, -H_pos.real])
+        all_imag = np.concatenate([H_pos.imag, -H_pos.imag])
+        r_lo = min(-1.5, float(np.percentile(all_real, 1)))
+        r_hi = max( 1.5, float(np.percentile(all_real, 99)))
+        i_lo = min(-1.5, float(np.percentile(all_imag, 1)))
+        i_hi = max( 1.5, float(np.percentile(all_imag, 99)))
+
+        fig_nyq.update_layout(
+            xaxis_title="Real axis",
+            yaxis_title="Imaginary axis",
+            yaxis_scaleanchor="x",
+            xaxis=dict(range=[r_lo, r_hi], gridcolor=C["grid"]),
+            yaxis=dict(range=[i_lo, i_hi], gridcolor=C["grid"]),
+            height=560,
+            **PLOT_LAYOUT,
+        )
+        st.plotly_chart(fig_nyq, use_container_width=True)
+
+        # Margin summary below plot
+        nyq_cols = st.columns(3)
+        pm_v = margins.get("pm_deg")
+        gm_v = margins.get("gm_db")
+        nyq_cols[0].metric("Phase Margin",
+                            f"{pm_v:.1f}°" if pm_v is not None and np.isfinite(pm_v) else "∞")
+        nyq_cols[1].metric("Gain Margin",
+                            f"{gm_v:.1f} dB" if gm_v is not None and np.isfinite(gm_v) else "∞")
+        nyq_cols[2].metric("Encirclements of −1",
+                            "0 (stable OL)" if all_stable else "check manually")
+
+        st.markdown("""<div class="theory-box">
+
+**Nyquist Stability Criterion (informal):**
+For an open-loop stable system, the closed loop is stable iff L(jω) does **not** encircle the −1 point.
+
+**Distance to −1 = robustness indicator**
+- Phase margin PM = angle from −1 to L(jωgc) (shown as dashed circle)
+- Gain margin GM = how much you can raise gain before L(jωpc) hits −1
+
+**Why Nyquist over Bode?**
+Nyquist shows **both** magnitude and phase simultaneously in one picture and handles
+RHP open-loop poles (delay, unstable plants) correctly — Bode margins alone can mislead for non-minimum-phase systems.
+</div>""", unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Nyquist computation failed: {e}")
+
+# ─────────────────────────────────────────────────────────────
+# TAB 7 — Theory Guide
+# ─────────────────────────────────────────────────────────────
+with tabs[6]:
     st.markdown("## Control Theory Quick Reference")
 
     col_t1, col_t2 = st.columns(2)
