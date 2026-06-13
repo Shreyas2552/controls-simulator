@@ -888,6 +888,145 @@ function identifyFOPDT(t, y) {
     return { K: +K.toFixed(4), tau: +tau.toFixed(4), L: +L.toFixed(4) };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Cascade Control  — returns {t, y_cascade, y_single, u_cascade}
+// G1: K1/(τ1s+1)  G2: K2/(τ2s+1)   Disturbance at G1 input
+// ─────────────────────────────────────────────────────────────────────────────
+function simCascade(K1, tau1, K2, tau2, dist, distTime, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const skip  = Math.max(1, Math.floor(steps / 600));
+
+    // Auto-tune gains via SIMC
+    const { Kp: Kp_in, Ki: Ki_in } = simc_pi(K1, tau1, 0, tau1 * 0.5);
+    const { Kp: Kp_out, Ki: Ki_out } = simc_pi(K2, tau2, 0, tau2);
+    // Single-loop on combined plant K1*K2 / ((τ1s+1)(τ2s+1)) ≈ FOPDT with tau_eq = τ1+τ2
+    const { Kp: Kp_sl, Ki: Ki_sl } = simc_pi(K1 * K2, tau1 + tau2, 0, tau1 + tau2);
+
+    let x1c = 0, x2c = 0, io = 0, ii = 0;  // cascade
+    let x1s = 0, x2s = 0, isl = 0;          // single-loop
+
+    const t_out = [], yc_out = [], ys_out = [], uc_out = [];
+
+    for (let k = 0; k < steps; k++) {
+        const d = (k * dt >= distTime) ? dist : 0;
+
+        // ─ Cascade ─
+        const e_out = ref - x2c;
+        io += e_out * dt;
+        const y1_ref = Kp_out * e_out + Ki_out * io;
+        const e_in = y1_ref - x1c;
+        ii += e_in * dt;
+        const u_c = Kp_in * e_in + Ki_in * ii;
+        x1c += dt * (K1 * (u_c + d) - x1c) / tau1;
+        x2c += dt * (K2 * x1c - x2c) / tau2;
+
+        // ─ Single-loop ─
+        const e_sl = ref - x2s;
+        isl += e_sl * dt;
+        const u_s = Kp_sl * e_sl + Ki_sl * isl;
+        x1s += dt * (K1 * (u_s + d) - x1s) / tau1;
+        x2s += dt * (K2 * x1s - x2s) / tau2;
+
+        if (k % skip === 0) {
+            t_out.push(+(k * dt).toFixed(4));
+            yc_out.push(x2c); ys_out.push(x2s); uc_out.push(u_c);
+        }
+    }
+    return { t: t_out, y_cascade: yc_out, y_single: ys_out, u_cascade: uc_out };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feedforward Control  — returns {t, y_fb, y_ff_perfect, y_ff_mismatch}
+// Plant G: K_G/(τ_G s+1)   Disturbance Gd: K_Gd/(τ_Gd s+1)
+// ─────────────────────────────────────────────────────────────────────────────
+function simFeedforward(K_G, tau_G, K_Gd, tau_Gd, Kp, Ki, dist, distTime, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const skip  = Math.max(1, Math.floor(steps / 600));
+    const Ff    = -K_Gd / K_G;  // perfect static feedforward gain
+    const Ff_m  = Ff * 0.5;     // 50% mismatch
+
+    let xG_fb=0, xD_fb=0, iFB=0;
+    let xG_pf=0, xD_pf=0, iPF=0;
+    let xG_mf=0, xD_mf=0, iMF=0;
+
+    const t_out = [], yfb = [], ypf = [], ymf = [];
+
+    for (let k = 0; k < steps; k++) {
+        const d = (k * dt >= distTime) ? dist : 0;
+
+        const advance = (xG, xD, integ, u_ff) => {
+            const y = xG + xD;   // x already scaled (output state = K*state)
+            const err = ref - y;
+            const newI = integ + err * dt;
+            const u_fb = Kp * err + Ki * newI;
+            const u_total = u_fb + u_ff;
+            const nxG = xG + dt * (K_G * u_total - xG) / tau_G;
+            const nxD = xD + dt * (K_Gd * d - xD) / tau_Gd;
+            return { y, newI, nxG, nxD };
+        };
+
+        const fb = advance(xG_fb, xD_fb, iFB, 0);
+        const pf = advance(xG_pf, xD_pf, iPF, Ff * d);
+        const mf = advance(xG_mf, xD_mf, iMF, Ff_m * d);
+
+        iFB = fb.newI; xG_fb = fb.nxG; xD_fb = fb.nxD;
+        iPF = pf.newI; xG_pf = pf.nxG; xD_pf = pf.nxD;
+        iMF = mf.newI; xG_mf = mf.nxG; xD_mf = mf.nxD;
+
+        if (k % skip === 0) {
+            t_out.push(+(k * dt).toFixed(4));
+            yfb.push(fb.y); ypf.push(pf.y); ymf.push(mf.y);
+        }
+    }
+    return { t: t_out, y_fb: yfb, y_ff_perfect: ypf, y_ff_mismatch: ymf };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sliding Mode Control  (mass-spring-damper: mẍ + bẋ + kx = u)
+// Surface s = ẋ + c*(x−ref),  u = u_eq − K·m·sat(s/φ)
+// ─────────────────────────────────────────────────────────────────────────────
+function simSMC(m, k, b, c_smc, K_smc, phi, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const skip  = Math.max(1, Math.floor(steps / 600));
+    let x = 0, xdot = 0;
+    const t_out = [], x_out = [], u_out = [], s_out = [];
+
+    for (let i = 0; i < steps; i++) {
+        const s   = xdot + c_smc * (x - ref);
+        const sat = Math.max(-1, Math.min(1, s / phi));
+        const u_eq = (b - m * c_smc) * xdot + k * x;
+        const u   = u_eq - K_smc * m * sat;
+
+        if (i % skip === 0) {
+            t_out.push(+(i * dt).toFixed(4));
+            x_out.push(x); u_out.push(u); s_out.push(s);
+        }
+
+        const xddot = (u - b * xdot - k * x) / m;
+        xdot += dt * xddot;
+        x    += dt * xdot;
+    }
+    return { t: t_out, x: x_out, u: u_out, s: s_out };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Relay (bang-bang) Control  (same MSD plant)
+// ─────────────────────────────────────────────────────────────────────────────
+function simRelay(m, k, b, u_max, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const skip  = Math.max(1, Math.floor(steps / 600));
+    let x = 0, xdot = 0;
+    const t_out = [], x_out = [], u_out = [];
+
+    for (let i = 0; i < steps; i++) {
+        const u = u_max * (ref - x >= 0 ? 1 : -1);
+        if (i % skip === 0) { t_out.push(+(i * dt).toFixed(4)); x_out.push(x); u_out.push(u); }
+        xdot += dt * (u - b * xdot - k * x) / m;
+        x    += dt * xdot;
+    }
+    return { t: t_out, x: x_out, u: u_out };
+}
+
 // Export everything on the window object (for use from inline HTML scripts)
 window.CS = {
     Poly, C, tf2ss, stepResponse, bodeData, stabilityMargins,
@@ -896,4 +1035,5 @@ window.CS = {
     simulateLQR, simulateLQG, SS_PLANTS,
     buildPredMatrices, precomputeMPC, simulateMPC,
     simSmithComparison, simc_pi, simFOPDT_PI, simFOPDT_openloop, identifyFOPDT,
+    simCascade, simFeedforward, simSMC, simRelay,
 };

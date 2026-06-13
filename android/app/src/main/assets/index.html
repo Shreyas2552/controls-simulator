@@ -485,26 +485,158 @@
     <button class="back-btn" onclick="showNav()">←</button>
     <span class="page-title">🔗 Control Strategies</span>
   </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="strTab(0)">🔗 Cascade</button>
+    <button class="tab-btn"        onclick="strTab(1)">➡️ Feedforward</button>
+    <button class="tab-btn"        onclick="strTab(2)">⚡ SMC</button>
+    <button class="tab-btn"        onclick="strTab(3)">🔀 Relay</button>
+  </div>
+
   <div class="scroll-content" style="padding:12px;">
-    <div class="coming-soon">
-      <span class="cs-icon">🚧</span>
-      <h3>Cascade, IMC/SIMC, Feedforward &amp; SMC Simulations</h3>
-      <p>Interactive simulations coming in v2.1.</p>
+    <!-- Tab 0: Cascade -->
+    <div class="tab-content active" id="str-tab-0">
+      <div class="panel">
+        <div class="panel-title">Cascade Plant (auto-SIMC tuned)</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Inner K1</span><span class="ctrl-val" id="sv-K1">2</span></div>
+          <input type="range" min="0.1" max="10" step="0.1" value="2"
+            oninput="strState.K1=+this.value;document.getElementById('sv-K1').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Inner τ1 (s)</span><span class="ctrl-val" id="sv-tau1">1</span></div>
+          <input type="range" min="0.1" max="10" step="0.1" value="1"
+            oninput="strState.tau1=+this.value;document.getElementById('sv-tau1').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Outer K2</span><span class="ctrl-val" id="sv-K2">1.5</span></div>
+          <input type="range" min="0.1" max="10" step="0.1" value="1.5"
+            oninput="strState.K2=+this.value;document.getElementById('sv-K2').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Outer τ2 (s)</span><span class="ctrl-val" id="sv-tau2">3</span></div>
+          <input type="range" min="0.1" max="20" step="0.1" value="3"
+            oninput="strState.tau2=+this.value;document.getElementById('sv-tau2').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Disturbance amp</span><span class="ctrl-val" id="sv-dist">0.5</span></div>
+          <input type="range" min="0" max="2" step="0.05" value="0.5"
+            oninput="strState.dist=+this.value;document.getElementById('sv-dist').textContent=(+this.value).toFixed(2);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Disturbance time (s)</span><span class="ctrl-val" id="sv-dtim">10</span></div>
+          <input type="range" min="1" max="30" step="1" value="10"
+            oninput="strState.distTime=+this.value;document.getElementById('sv-dtim').textContent=this.value;">
+        </div>
+        <button class="btn-primary" id="str-cascade-btn" onclick="strRunCascade()">▶ Run Cascade vs Single-Loop</button>
+      </div>
+      <div class="chart-wrap"><div id="chart-str-cascade" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>Cascade Control</h4>
+        <p>Inner loop bandwidth ≥ 3× outer loop. Disturbances entering between loops are rejected before reaching the outer output. Gains are auto-tuned via SIMC.</p>
+      </div>
     </div>
-    <div class="theory-box">
-      <h4>Cascade Control</h4>
-      <p>Inner loop bandwidth ≥ 3× outer loop. Rejects disturbances entering between loops before they reach the outer output.</p>
+
+    <!-- Tab 1: Feedforward -->
+    <div class="tab-content" id="str-tab-1">
+      <div class="panel">
+        <div class="panel-title">Feedforward Setup</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Plant K_G</span><span class="ctrl-val" id="sv-KG">1</span></div>
+          <input type="range" min="0.1" max="5" step="0.1" value="1"
+            oninput="strState.K_G=+this.value;document.getElementById('sv-KG').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Plant τ_G (s)</span><span class="ctrl-val" id="sv-tauG">2</span></div>
+          <input type="range" min="0.1" max="15" step="0.1" value="2"
+            oninput="strState.tau_G=+this.value;document.getElementById('sv-tauG').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Disturbance K_Gd</span><span class="ctrl-val" id="sv-KGd">0.8</span></div>
+          <input type="range" min="0.1" max="5" step="0.1" value="0.8"
+            oninput="strState.K_Gd=+this.value;document.getElementById('sv-KGd').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Disturbance τ_Gd (s)</span><span class="ctrl-val" id="sv-tauGd">1</span></div>
+          <input type="range" min="0.1" max="15" step="0.1" value="1"
+            oninput="strState.tau_Gd=+this.value;document.getElementById('sv-tauGd').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Disturbance amp</span><span class="ctrl-val" id="sv-ff-dist">1</span></div>
+          <input type="range" min="0.1" max="5" step="0.1" value="1"
+            oninput="strState.ff_dist=+this.value;document.getElementById('sv-ff-dist').textContent=(+this.value).toFixed(1);">
+        </div>
+        <button class="btn-primary" id="str-ff-btn" onclick="strRunFF()">▶ Run Feedforward</button>
+      </div>
+      <div class="chart-wrap"><div id="chart-str-ff" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>Feedforward Control</h4>
+        <p>Perfect FF gain: Ff = −K_Gd/K_G. Added to feedback control output. Requires disturbance measurement. Mismatch (50%) still helps but imperfect rejection.</p>
+      </div>
     </div>
-    <div class="theory-box" style="border-color:#FF9800;">
-      <h4>SIMC Tuning (Skogestad IMC)</h4>
-      <p>Single tuning parameter λ (desired CL time constant):<br>
-         <code>Kp = τ/(K·(λ+θ))</code>,  <code>Ti = min(τ, 4(λ+θ))</code><br>
-         λ = θ → aggressive, λ = 5τ → conservative. Best single-parameter PID method.</p>
+
+    <!-- Tab 2: SMC -->
+    <div class="tab-content" id="str-tab-2">
+      <div class="panel">
+        <div class="panel-title">Mass-Spring-Damper  mẍ + bẋ + kx = u</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Mass m (kg)</span><span class="ctrl-val" id="sv-m">1</span></div>
+          <input type="range" min="0.1" max="5" step="0.1" value="1"
+            oninput="strState.m=+this.value;document.getElementById('sv-m').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Spring k (N/m)</span><span class="ctrl-val" id="sv-k">2</span></div>
+          <input type="range" min="0.1" max="20" step="0.1" value="2"
+            oninput="strState.k=+this.value;document.getElementById('sv-k').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Damper b</span><span class="ctrl-val" id="sv-b">0.5</span></div>
+          <input type="range" min="0" max="5" step="0.1" value="0.5"
+            oninput="strState.b=+this.value;document.getElementById('sv-b').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="panel-title" style="margin-top:8px;">SMC Parameters</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Slope c</span><span class="ctrl-val" id="sv-c">2</span></div>
+          <input type="range" min="0.1" max="10" step="0.1" value="2"
+            oninput="strState.c_smc=+this.value;document.getElementById('sv-c').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Gain K_smc</span><span class="ctrl-val" id="sv-Ksmc">5</span></div>
+          <input type="range" min="0.1" max="20" step="0.1" value="5"
+            oninput="strState.K_smc=+this.value;document.getElementById('sv-Ksmc').textContent=(+this.value).toFixed(1);">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>Boundary layer φ</span><span class="ctrl-val" id="sv-phi">0.1</span></div>
+          <input type="range" min="0.01" max="1" step="0.01" value="0.1"
+            oninput="strState.phi=+this.value;document.getElementById('sv-phi').textContent=(+this.value).toFixed(2);">
+        </div>
+        <button class="btn-primary" id="str-smc-btn" onclick="strRunSMC()">▶ Run SMC</button>
+      </div>
+      <div class="chart-wrap"><div id="chart-str-smc" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>Sliding Mode Control</h4>
+        <p>s = ẋ + c·(x−r)   u = u_eq − K·m·sat(s/φ)<br>
+           u_eq = (b−mc)ẋ + kx (keeps on sliding surface)<br>
+           φ: boundary layer — smaller φ → faster but more chattering</p>
+      </div>
     </div>
-    <div class="theory-box" style="border-color:#4CAF50;">
-      <h4>Sliding Mode Control</h4>
-      <p>Sliding surface s = ė + c·e. Control drives state to surface (s=0) then slides to origin.<br>
-         u = u_eq + K·sat(s/φ). Boundary layer φ eliminates chattering at expense of steady-state error.</p>
+
+    <!-- Tab 3: Relay -->
+    <div class="tab-content" id="str-tab-3">
+      <div class="panel">
+        <div class="panel-title">Same MSD plant — Bang-Bang Control</div>
+        <div class="ctrl-row">
+          <div class="ctrl-label"><span>u_max</span><span class="ctrl-val" id="sv-umax-relay">10</span></div>
+          <input type="range" min="1" max="50" step="0.5" value="10"
+            oninput="strState.u_max_relay=+this.value;document.getElementById('sv-umax-relay').textContent=(+this.value).toFixed(1);">
+        </div>
+        <button class="btn-primary" id="str-relay-btn" onclick="strRunRelay()">▶ Run Relay Control</button>
+      </div>
+      <div class="chart-wrap"><div id="chart-str-relay" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>Relay (Bang-Bang) Control</h4>
+        <p>u = +u_max if r − x ≥ 0, else −u_max. Causes limit cycles. Common in thermostats, HVAC. Amplitude and frequency of oscillation depend on plant dynamics and u_max.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -1166,6 +1298,107 @@ function advRunSysID() {
         `<span style="color:#4CAF50">Fitted: K=${fit.K}, τ=${fit.tau}, L=${fit.L}</span>`;
     } catch(e) { console.error(e); }
     btn.textContent = '▶ Generate & Identify'; btn.disabled = false;
+  }, 20);
+}
+
+// ── Control Strategies ───────────────────────────────────────────────────────
+const strState = {
+  K1:1.0, tau1:1.0, K2:1.5, tau2:3.0, dist:0.5, distTime:10,
+  K_G:1.0, tau_G:2.0, K_Gd:0.8, tau_Gd:1.0, ff_dist:1.0,
+  m:1.0, k:2.0, b:0.5, c_smc:2.0, K_smc:5.0, phi:0.1, u_max_relay:10.0,
+};
+let _strActiveTab = 0;
+
+function strTab(n) {
+  document.querySelectorAll('#strategies-page .tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
+  document.querySelectorAll('#strategies-page .tab-content').forEach((c, i) => c.classList.toggle('active', i === n));
+  _strActiveTab = n;
+}
+
+function strRunCascade() {
+  const btn = document.getElementById('str-cascade-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { K1, tau1, K2, tau2, dist, distTime } = strState;
+      const tEnd = Math.max(30, (tau1 + tau2) * 10);
+      const { t, y_cascade, y_single } = CS.simCascade(K1, tau1, K2, tau2, dist, distTime, 1.0, tEnd, 0.05);
+      const tRef = t.map(() => 1);
+      Plotly.react('chart-str-cascade', [
+        { x: t, y: tRef,      name: 'Reference',   line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: t, y: y_cascade, name: 'Cascade',      line: { color: '#4CAF50', width: 2.5 } },
+        { x: t, y: y_single,  name: 'Single-loop',  line: { color: '#FF9800', width: 2 } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'y(t)' },
+           title: { text: 'Cascade vs Single-Loop (disturbance @ t=' + distTime + 's)', font: { size: 12 } } }, PLT_CFG);
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run Cascade vs Single-Loop'; btn.disabled = false;
+  }, 20);
+}
+
+function strRunFF() {
+  const btn = document.getElementById('str-ff-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { K_G, tau_G, K_Gd, tau_Gd, ff_dist } = strState;
+      const tEnd = Math.max(20, tau_G * 8);
+      const { Kp, Ki } = CS.simc_pi(K_G, tau_G, 0, tau_G);
+      const { t, y_fb, y_ff_perfect, y_ff_mismatch } = CS.simFeedforward(
+        K_G, tau_G, K_Gd, tau_Gd, Kp, Ki, ff_dist, tEnd * 0.3, 1.0, tEnd, 0.05);
+      const tRef = t.map(() => 1);
+      Plotly.react('chart-str-ff', [
+        { x: t, y: tRef,         name: 'Reference',       line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: t, y: y_fb,         name: 'FB only',         line: { color: '#FF9800', width: 2 } },
+        { x: t, y: y_ff_perfect, name: 'FB + FF (perfect)',  line: { color: '#4CAF50', width: 2.5 } },
+        { x: t, y: y_ff_mismatch,name: 'FB + FF (50% mismatch)', line: { color: '#9C27B0', width: 2, dash: 'dot' } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'y(t)' },
+           title: { text: 'Feedforward Disturbance Rejection', font: { size: 12 } } }, PLT_CFG);
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run Feedforward'; btn.disabled = false;
+  }, 20);
+}
+
+function strRunSMC() {
+  const btn = document.getElementById('str-smc-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { m, k, b, c_smc, K_smc, phi } = strState;
+      const tEnd = 15;
+      const { t, x, u, s } = CS.simSMC(m, k, b, c_smc, K_smc, phi, 1.0, tEnd, 0.005);
+      const tRef = t.map(() => 1);
+      Plotly.react('chart-str-smc', [
+        { x: t, y: tRef, name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: t, y: x,    name: 'Position x', line: { color: '#4CAF50', width: 2.5 } },
+        { x: t, y: s,    name: 'Sliding surface s', line: { color: '#FF9800', width: 1.5, dash: 'dot' },
+          yaxis: 'y2' },
+      ], { ...LAYOUT,
+           xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' },
+           yaxis: { ...LAYOUT.yaxis, title: 'Position (m)' },
+           yaxis2: { ...LAYOUT.yaxis, title: 's(t)', overlaying: 'y', side: 'right', gridcolor: 'transparent' },
+           title: { text: `SMC  c=${c_smc}, K=${K_smc}, φ=${phi}`, font: { size: 12 } } }, PLT_CFG);
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run SMC'; btn.disabled = false;
+  }, 20);
+}
+
+function strRunRelay() {
+  const btn = document.getElementById('str-relay-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { m, k, b, u_max_relay } = strState;
+      const { t, x, u } = CS.simRelay(m, k, b, u_max_relay, 1.0, 20, 0.005);
+      const tRef = t.map(() => 1);
+      Plotly.react('chart-str-relay', [
+        { x: t, y: tRef, name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: t, y: x,    name: 'Position x', line: { color: '#4CAF50', width: 2.5 } },
+        { x: t, y: u.map(v => v / u_max_relay * 0.1), name: 'u/u_max (scaled)',
+          line: { color: '#FF9800', width: 1.5, dash: 'dot' } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Position (m)' },
+           title: { text: `Relay Control  u_max=${u_max_relay}`, font: { size: 12 } } }, PLT_CFG);
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run Relay Control'; btn.disabled = false;
   }, 20);
 }
 
