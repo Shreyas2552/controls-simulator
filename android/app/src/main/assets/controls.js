@@ -772,6 +772,122 @@ function simulateMPC(A, B_col, C_row, Np, Nc, Qy, Ru, ref, tEnd, dt, uMin, uMax,
     return { t: t_out, y: y_out, u: u_out, constrained };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FOPDT helpers (discrete Euler, circular delay buffer)
+// ─────────────────────────────────────────────────────────────────────────────
+function _fopdt_step(x, u, K, tau, dt) {
+    return (1 - dt / tau) * x + (dt / tau) * u;
+}
+
+// Smith Predictor vs plain PI comparison  —  returns {t, y_plain, y_smith}
+function simSmithComparison(K, tau, L, Kp, Ki, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const nL = Math.max(0, Math.round(L / dt));
+    const N  = nL + 1;
+    const skip = Math.max(1, Math.floor(steps / 600));
+
+    // Plain PI
+    const buf_p = new Array(N).fill(0); let ptr_p = 0;
+    let x_p = 0, int_p = 0;
+
+    // Smith PI
+    const buf_s = new Array(N).fill(0); let ptr_s = 0;
+    const buf_m = new Array(N).fill(0); let ptr_m = 0;
+    let x_s = 0, x_m = 0, int_s = 0;
+
+    const t_out = [], yp_out = [], ys_out = [];
+
+    for (let k = 0; k < steps; k++) {
+        // ─ Plain PI ─
+        const y_p = K * buf_p[(ptr_p - nL + N) % N];
+        int_p += (ref - y_p) * dt;
+        const u_p = Kp * (ref - y_p) + Ki * int_p;
+        buf_p[ptr_p] = x_p; ptr_p = (ptr_p + 1) % N;
+        x_p = _fopdt_step(x_p, u_p, K, tau, dt);
+
+        // ─ Smith Predictor ─
+        const y_act = K * buf_s[(ptr_s - nL + N) % N];
+        const y_m_nd = K * x_m;
+        const y_m_d  = K * buf_m[(ptr_m - nL + N) % N];
+        const e_s = ref - (y_act + y_m_nd - y_m_d);
+        int_s += e_s * dt;
+        const u_s = Kp * e_s + Ki * int_s;
+        buf_s[ptr_s] = x_s; ptr_s = (ptr_s + 1) % N;
+        x_s = _fopdt_step(x_s, u_s, K, tau, dt);
+        buf_m[ptr_m] = x_m; ptr_m = (ptr_m + 1) % N;
+        x_m = _fopdt_step(x_m, u_s, K, tau, dt);
+
+        if (k % skip === 0) {
+            t_out.push(+(k * dt).toFixed(4));
+            yp_out.push(y_p);
+            ys_out.push(y_act);
+        }
+    }
+    return { t: t_out, y_plain: yp_out, y_smith: ys_out };
+}
+
+// SIMC PI tuning
+function simc_pi(K, tau, L, lambda_c) {
+    const Kp = tau / (K * (lambda_c + L));
+    const Ti = Math.min(tau, 4 * (lambda_c + L));
+    const Ki = Kp / Ti;
+    return { Kp, Ki };
+}
+
+// Simulate FOPDT with PI  —  returns {t, y, u}
+function simFOPDT_PI(K, tau, L, Kp, Ki, ref, tEnd, dt) {
+    const steps = Math.floor(tEnd / dt);
+    const nL = Math.max(0, Math.round(L / dt));
+    const N = nL + 1;
+    const buf = new Array(N).fill(0); let ptr = 0;
+    let x = 0, integ = 0;
+    const skip = Math.max(1, Math.floor(steps / 600));
+    const t_out = [], y_out = [], u_out = [];
+    for (let k = 0; k < steps; k++) {
+        const y = K * buf[(ptr - nL + N) % N];
+        const err = ref - y;
+        integ += err * dt;
+        const u = Kp * err + Ki * integ;
+        buf[ptr] = x; ptr = (ptr + 1) % N;
+        x = _fopdt_step(x, u, K, tau, dt);
+        if (k % skip === 0) { t_out.push(+(k * dt).toFixed(4)); y_out.push(y); u_out.push(u); }
+    }
+    return { t: t_out, y: y_out, u: u_out };
+}
+
+// Open-loop step response (for System ID)  —  returns {t, y}
+function simFOPDT_openloop(K, tau, L, tEnd, dt, noiseStd, seed) {
+    const steps = Math.floor(tEnd / dt);
+    const nL = Math.max(0, Math.round(L / dt));
+    const N = nL + 1;
+    const buf = new Array(N).fill(0); let ptr = 0;
+    let x = 0;
+    let s = (seed || 42) >>> 0;
+    const rng = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let tt = Math.imul(s ^ s >>> 15, 1 | s); tt = tt + Math.imul(tt ^ tt >>> 7, 61 | tt) ^ tt; return ((tt ^ tt >>> 14) >>> 0) / 4294967296; };
+    const randn = () => { const u1 = rng(), u2 = rng(); return Math.sqrt(-2 * Math.log(u1 + 1e-15)) * Math.cos(2 * Math.PI * u2); };
+    const skip = Math.max(1, Math.floor(steps / 600));
+    const t_out = [], y_out = [];
+    for (let k = 0; k < steps; k++) {
+        const y = K * buf[(ptr - nL + N) % N] + noiseStd * randn();
+        if (k % skip === 0) { t_out.push(+(k * dt).toFixed(4)); y_out.push(y); }
+        buf[ptr] = x; ptr = (ptr + 1) % N;
+        x = _fopdt_step(x, 1.0, K, tau, dt);
+    }
+    return { t: t_out, y: y_out };
+}
+
+// Identify FOPDT from step response
+function identifyFOPDT(t, y) {
+    const yss = y[y.length - 1];
+    if (Math.abs(yss) < 1e-6) return { K: 1, tau: 1, L: 0 };
+    const K = yss;
+    const i5  = y.findIndex(v => v >= 0.05  * yss);
+    const i63 = y.findIndex(v => v >= 0.632 * yss);
+    const L   = i5  >= 0 ? t[i5]  : 0;
+    const tau = i63 >= 0 ? Math.max(0.01, t[i63] - L) : 1;
+    return { K: +K.toFixed(4), tau: +tau.toFixed(4), L: +L.toFixed(4) };
+}
+
 // Export everything on the window object (for use from inline HTML scripts)
 window.CS = {
     Poly, C, tf2ss, stepResponse, bodeData, stabilityMargins,
@@ -779,4 +895,5 @@ window.CS = {
     Mat, discretizeSS, solveDARE, lqrDesign, kalmanDesign,
     simulateLQR, simulateLQG, SS_PLANTS,
     buildPredMatrices, precomputeMPC, simulateMPC,
+    simSmithComparison, simc_pi, simFOPDT_PI, simFOPDT_openloop, identifyFOPDT,
 };

@@ -367,34 +367,115 @@
     <button class="back-btn" onclick="showNav()">←</button>
     <span class="page-title">🎓 Advanced Topics &amp; Interview Prep</span>
   </div>
+
+  <div style="padding:12px 12px 0;">
+    <div class="panel">
+      <div class="panel-title">FOPDT Plant  G(s) = K·e⁻ᴸˢ/(τs+1)</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>DC Gain K</span><span class="ctrl-val" id="adv-v-K">1.00</span></div>
+        <input type="range" min="0.1" max="5" step="0.05" value="1"
+               oninput="advState.K=+this.value;document.getElementById('adv-v-K').textContent=(+this.value).toFixed(2);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Time constant τ (s)</span><span class="ctrl-val" id="adv-v-tau">3.00</span></div>
+        <input type="range" min="0.5" max="20" step="0.1" value="3"
+               oninput="advState.tau=+this.value;document.getElementById('adv-v-tau').textContent=(+this.value).toFixed(2);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Dead-time L (s)</span><span class="ctrl-val" id="adv-v-L">1.00</span></div>
+        <input type="range" min="0" max="10" step="0.1" value="1"
+               oninput="advState.L=+this.value;document.getElementById('adv-v-L').textContent=(+this.value).toFixed(2);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>SIMC λ (desired CL τ)</span><span class="ctrl-val" id="adv-v-lam">1.00</span></div>
+        <input type="range" min="0.1" max="20" step="0.1" value="1"
+               oninput="advState.lam=+this.value;document.getElementById('adv-v-lam').textContent=(+this.value).toFixed(2);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Noise σ (System ID)</span><span class="ctrl-val" id="adv-v-noise">0.05</span></div>
+        <input type="range" min="0" max="0.5" step="0.005" value="0.05"
+               oninput="advState.noise=+this.value;document.getElementById('adv-v-noise').textContent=(+this.value).toFixed(3);">
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="advTab(0)">🔌 Smith Predictor</button>
+    <button class="tab-btn"        onclick="advTab(1)">📐 SIMC Tuning</button>
+    <button class="tab-btn"        onclick="advTab(2)">🔍 System ID</button>
+    <button class="tab-btn"        onclick="advTab(3)">🎓 Q&amp;A</button>
+  </div>
+
   <div class="scroll-content" style="padding:12px;">
-    <div class="coming-soon">
-      <span class="cs-icon">🚧</span>
-      <h3>Smith Predictor &amp; System ID Simulation</h3>
-      <p>Interactive simulations coming in v2.1.</p>
+    <div class="tab-content active" id="adv-tab-0">
+      <button class="btn-primary" onclick="advRunSmith()" id="adv-smith-btn">▶ Run Smith Predictor</button>
+      <div class="chart-wrap" style="margin-top:10px;"><div id="chart-adv-smith" style="height:300px;"></div></div>
+      <div class="metrics-row" id="adv-smith-metrics"></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>Smith Predictor</h4>
+        <p>Removes delay from CL char. equation.<br>
+           Error: <code>e = r − [y + G_m·u − G_m·e^{−Ls}·u]</code><br>
+           With perfect model: <code>e ≈ r − G_m·u</code> (delay-free).<br>
+           Result: T(s) = C·G/(1+C·G) · e^{−Ls} — delay only on output.</p>
+      </div>
     </div>
-    <div class="theory-box">
-      <h4>Smith Predictor</h4>
-      <p>Removes delay from the control loop. Error signal:<br>
-         <code>e_SP = r − y − (G_m·e^{−Ls} − G_m)·u</code><br>
-         Effective CL: T(s) = C(s)G(s)/(1+C(s)G(s)) · e^{−Ls}<br>
-         Delay only on output — NOT in characteristic equation. Much easier to tune.</p>
+    <div class="tab-content" id="adv-tab-1">
+      <button class="btn-primary" onclick="advRunSIMC()" id="adv-simc-btn">▶ Run SIMC Tuning</button>
+      <div id="adv-simc-gains" style="font-family:monospace;font-size:0.85rem;color:#4CAF50;padding:8px 0;"></div>
+      <div class="chart-wrap"><div id="chart-adv-simc" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>SIMC (Skogestad IMC) PI Tuning</h4>
+        <p><code>Kp = τ / (K·(λ+L))</code><br>
+           <code>Ti = min(τ, 4·(λ+L))</code>   →  <code>Ki = Kp/Ti</code><br><br>
+           λ = L: aggressive  |  λ = τ: moderate  |  λ = 5τ: conservative</p>
+      </div>
     </div>
-    <div class="theory-box" style="border-color:#FF9800;">
-      <h4>FOPDT System Identification</h4>
-      <p>G(s) = K·e^{−Ls}/(τs+1) — three parameters from step response:<br>
-         K = y_ss/u_step | τ from 63.2% crossing | L from 5% crossing<br>
-         Cohen-Coon auto-tuning: Kp = (1.35/K)·(τ/L)·(1+0.185r),  r = L/τ</p>
+    <div class="tab-content" id="adv-tab-2">
+      <button class="btn-primary" onclick="advRunSysID()" id="adv-sysid-btn">▶ Generate &amp; Identify</button>
+      <div id="adv-sysid-params" style="font-family:monospace;font-size:0.82rem;padding:8px 0;"></div>
+      <div class="chart-wrap"><div id="chart-adv-sysid" style="height:280px;"></div></div>
+      <div class="theory-box" style="margin-top:10px;">
+        <h4>FOPDT Identification from Step Response</h4>
+        <p><b>K</b> = y_ss / u_step<br>
+           <b>L</b> ≈ time to reach 5% of y_ss<br>
+           <b>τ</b> ≈ time to reach 63.2% of y_ss − L<br><br>
+           Noisy step responses: average multiple runs or use tangent-line method.</p>
+      </div>
     </div>
-    <div class="theory-box" style="border-color:#9C27B0;">
-      <h4>Interview Quick Reference — Phase Margins</h4>
-      <table>
-        <tr><th>PM</th><th>Behavior</th><th>ζ approx</th></tr>
-        <tr><td>&gt;60°</td><td>Well-damped, slow</td><td>~0.6</td></tr>
-        <tr><td>45°</td><td>Good balance</td><td>~0.45</td></tr>
-        <tr><td>30°</td><td>Lightly damped</td><td>~0.3</td></tr>
-        <tr><td>&lt;0°</td><td>Unstable CL</td><td>—</td></tr>
-      </table>
+    <div class="tab-content" id="adv-tab-3">
+      <div class="theory-box">
+        <h4>Q: What is Phase Margin and why PM &gt; 45°?</h4>
+        <p>PM = 180° + ∠G(jω_gc). How much extra phase lag before CL goes unstable. PM ≈ 100·ζ (rule of thumb). PM &gt; 45° → ζ &gt; 0.45 → well-damped response without excessive overshoot.</p>
+      </div>
+      <div class="theory-box" style="border-color:#FF9800;">
+        <h4>Q: What happens as dead-time L increases?</h4>
+        <p>Delay adds phase lag of −ωL rad (−ωL·180/π degrees). At gain crossover ω_gc: phase shift = −ω_gc·L. PM decreases, eventually to 0 → instability. Rule: PM ≈ 0 when L·ω_gc ≈ PM_orig/57.3.</p>
+      </div>
+      <div class="theory-box" style="border-color:#9C27B0;">
+        <h4>Q: PID vs LQR — when to use which?</h4>
+        <table>
+          <tr><th></th><th>PID</th><th>LQR</th></tr>
+          <tr><td>System model</td><td>TF only</td><td>State-space needed</td></tr>
+          <tr><td>SISO</td><td>Natural</td><td>Works</td></tr>
+          <tr><td>MIMO</td><td>Difficult</td><td>Natural</td></tr>
+          <tr><td>Optimality</td><td>Heuristic</td><td>J=∫(x'Qx+u'Ru)dt</td></tr>
+          <tr><td>Tuning</td><td>3 params</td><td>Q, R matrices</td></tr>
+        </table>
+      </div>
+      <div class="theory-box" style="border-color:#4CAF50;">
+        <h4>Q: Controllability &amp; Observability</h4>
+        <p><b>Controllable</b>: rank([B, AB, A²B, ...]) = n. Every state can be driven to any point in finite time.<br><br>
+           <b>Observable</b>: rank([C; CA; CA²; ...]) = n. Every initial state can be determined from outputs.<br><br>
+           Required for LQR (controllable) and Kalman (observable).</p>
+      </div>
+      <div class="theory-box" style="border-color:#00BCD4;">
+        <h4>Q: When use MPC over PID/LQR?</h4>
+        <p>• Hard actuator limits (u_min/u_max) — MPC handles explicitly<br>
+           • Constraint interactions between channels (MIMO)<br>
+           • Preview of future reference (known setpoint trajectory)<br>
+           • Slow processes (enough compute time per step)<br>
+           Trade-off: MPC needs a model and solves QP online.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -982,6 +1063,110 @@ function mpcRender() {
       nConst > 0 ? `⚠ Constraint active at ${nConst} steps — u clipped to [${mpcState.uMin}, ${mpcState.uMax}]`
                  : '✅ Constraints not active — unconstrained solution applied';
   }
+}
+
+// ── Advanced Control ─────────────────────────────────────────────────────────
+const advState = { K: 1, tau: 3, L: 1, lam: 1, noise: 0.05 };
+let _advActiveTab = 0;
+
+function advTab(n) {
+  document.querySelectorAll('#advanced-page .tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
+  document.querySelectorAll('#advanced-page .tab-content').forEach((c, i) => c.classList.toggle('active', i === n));
+  _advActiveTab = n;
+}
+
+function advRunSmith() {
+  const btn = document.getElementById('adv-smith-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { K, tau, L, lam } = advState;
+      const { Kp, Ki } = CS.simc_pi(K, tau, L, lam);
+      const tEnd = Math.max(20, (tau + L) * 8);
+      const { t, y_plain, y_smith } = CS.simSmithComparison(K, tau, L, Kp, Ki, 1.0, tEnd, 0.05);
+      const tRef = t.map(() => 1);
+      Plotly.react('chart-adv-smith', [
+        { x: t, y: tRef,    name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: t, y: y_plain, name: 'Plain PI',  line: { color: '#FF9800', width: 2.5 } },
+        { x: t, y: y_smith, name: 'Smith PI',  line: { color: '#4CAF50', width: 2.5 } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+           title: { text: `Smith Predictor  (L=${L}s, λ=${lam})`, font: { size: 12 } } }, PLT_CFG);
+
+      const m_plain = CS.performanceMetrics(t, y_plain, 1);
+      const m_smith = CS.performanceMetrics(t, y_smith, 1);
+      document.getElementById('adv-smith-metrics').innerHTML = `
+        <div class="metric-card"><div class="metric-label">Plain PI settle</div>
+          <div class="metric-value orange">${m_plain.settleTime ? m_plain.settleTime.toFixed(1)+'s' : 'N/A'}</div></div>
+        <div class="metric-card"><div class="metric-label">Smith settle</div>
+          <div class="metric-value green">${m_smith.settleTime ? m_smith.settleTime.toFixed(1)+'s' : 'N/A'}</div></div>
+        <div class="metric-card"><div class="metric-label">Kp (SIMC)</div>
+          <div class="metric-value">${Kp.toFixed(3)}</div></div>
+        <div class="metric-card"><div class="metric-label">Ki (SIMC)</div>
+          <div class="metric-value">${Ki.toFixed(3)}</div></div>`;
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run Smith Predictor'; btn.disabled = false;
+  }, 20);
+}
+
+function advRunSIMC() {
+  const btn = document.getElementById('adv-simc-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { K, tau, L } = advState;
+      const tEnd = Math.max(20, (tau + L) * 8);
+      // SIMC at user lambda
+      const { Kp: Kp1, Ki: Ki1 } = CS.simc_pi(K, tau, L, advState.lam);
+      // Aggressive: λ = L
+      const { Kp: Kp2, Ki: Ki2 } = CS.simc_pi(K, tau, L, L);
+      // Conservative: λ = tau
+      const { Kp: Kp3, Ki: Ki3 } = CS.simc_pi(K, tau, L, tau);
+      const r1 = CS.simFOPDT_PI(K, tau, L, Kp1, Ki1, 1.0, tEnd, 0.05);
+      const r2 = CS.simFOPDT_PI(K, tau, L, Kp2, Ki2, 1.0, tEnd, 0.05);
+      const r3 = CS.simFOPDT_PI(K, tau, L, Kp3, Ki3, 1.0, tEnd, 0.05);
+      const tRef = r1.t.map(() => 1);
+      Plotly.react('chart-adv-simc', [
+        { x: r1.t, y: tRef,  name: 'Reference',        line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+        { x: r1.t, y: r1.y,  name: `λ=${advState.lam}`, line: { color: '#4CAF50', width: 2.5 } },
+        { x: r2.t, y: r2.y,  name: `Aggressive λ=L`,    line: { color: '#FF9800', width: 2 } },
+        { x: r3.t, y: r3.y,  name: `Conservative λ=τ`,  line: { color: '#9C27B0', width: 2 } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+           title: { text: 'SIMC Tuning Comparison', font: { size: 12 } } }, PLT_CFG);
+
+      document.getElementById('adv-simc-gains').textContent =
+        `λ=${advState.lam}: Kp=${Kp1.toFixed(3)}, Ki=${Ki1.toFixed(3)}  |  ` +
+        `Aggressive: Kp=${Kp2.toFixed(3)}, Ki=${Ki2.toFixed(3)}`;
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Run SIMC Tuning'; btn.disabled = false;
+  }, 20);
+}
+
+function advRunSysID() {
+  const btn = document.getElementById('adv-sysid-btn');
+  btn.textContent = '⏳ Identifying...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const { K, tau, L, noise } = advState;
+      const tEnd = Math.max(20, (tau + L) * 6);
+      // True (noisy) step response
+      const { t, y } = CS.simFOPDT_openloop(K, tau, L, tEnd, 0.05, noise, 42);
+      // Identify
+      const fit = CS.identifyFOPDT(t, y);
+      // Simulate fitted model (clean)
+      const { t: tf, y: yf } = CS.simFOPDT_openloop(fit.K, fit.tau, fit.L, tEnd, 0.05, 0, 0);
+      Plotly.react('chart-adv-sysid', [
+        { x: t,  y: y,  name: 'Measured (noisy)', mode: 'lines',
+          line: { color: '#FF9800', width: 1.5 }, opacity: 0.7 },
+        { x: tf, y: yf, name: `Fitted FOPDT`,     line: { color: '#4CAF50', width: 2.5 } },
+      ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'y(t)' },
+           title: { text: 'System Identification', font: { size: 12 } } }, PLT_CFG);
+
+      document.getElementById('adv-sysid-params').innerHTML =
+        `<span style="color:#FF9800">True:  K=${K}, τ=${tau}, L=${L}</span><br>` +
+        `<span style="color:#4CAF50">Fitted: K=${fit.K}, τ=${fit.tau}, L=${fit.L}</span>`;
+    } catch(e) { console.error(e); }
+    btn.textContent = '▶ Generate & Identify'; btn.disabled = false;
+  }, 20);
 }
 
 // Init on load
