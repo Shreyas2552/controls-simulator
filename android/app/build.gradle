@@ -32,9 +32,10 @@ android {
         jvmTarget = '17'
     }
 
-    packagingOptions {
-        // Keep plotly.min.js uncompressed so WebView can load it efficiently
-        doNotCompress "*.js", "*.wasm"
+    packaging {
+        resources {
+            excludes += ['META-INF/*.kotlin_module']
+        }
     }
 }
 
