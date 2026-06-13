@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <title>Control Systems Simulator</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="lib/plotly.min.js"></script>
+  <script src="controls.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     NAVIGATION SCREEN
+═══════════════════════════════════════════════════════════════════════════════ -->
+<div id="nav-screen">
+  <div class="nav-title">⚙️ Control Systems Simulator</div>
+  <div class="nav-sub">Interactive PID · LQR/LQG · MPC · Advanced Topics<br>Works offline · for learning & interview prep</div>
+
+  <div class="nav-grid">
+    <div class="nav-card accent" onclick="showPage('pid-page')">
+      <span class="icon">🎛️</span>
+      <div class="title">PID Control</div>
+      <div class="desc">8 plants · Step · Bode · Root Locus · Nyquist</div>
+    </div>
+    <div class="nav-card" onclick="showPage('lqr-page')">
+      <span class="icon">🎯</span>
+      <div class="title">LQR / LQG</div>
+      <div class="desc">Optimal control · Kalman filter · Separation Principle</div>
+    </div>
+    <div class="nav-card" onclick="showPage('mpc-page')">
+      <span class="icon">🤖</span>
+      <div class="title">MPC</div>
+      <div class="desc">Finite-horizon · Constraints · vs LQR comparison</div>
+    </div>
+    <div class="nav-card" onclick="showPage('advanced-page')">
+      <span class="icon">🎓</span>
+      <div class="title">Advanced + QA</div>
+      <div class="desc">Smith Predictor · System ID · Interview Q&amp;A</div>
+    </div>
+    <div class="nav-card full" onclick="showPage('strategies-page')">
+      <span class="icon">🔗</span>
+      <div class="title">Control Strategies</div>
+      <div class="desc">Cascade · IMC/SIMC · Feedforward · SMC Nonlinear</div>
+    </div>
+  </div>
+
+  <div class="nav-footer">v2.0 · Shreyas2552/controls-simulator</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PAGE 1 — PID CONTROL SIMULATOR  (fully interactive)
+═══════════════════════════════════════════════════════════════════════════════ -->
+<div id="pid-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showNav()">←</button>
+    <span class="page-title">🎛️ PID Control Simulator</span>
+  </div>
+
+  <!-- Plant + PID controls (always visible) -->
+  <div style="padding:12px 12px 0">
+    <div class="panel">
+      <div class="panel-title">Plant Selection</div>
+      <select id="pid-plant" onchange="pidUpdatePlantParams()"></select>
+      <div id="pid-plant-label" style="font-size:0.75rem;color:#8b949e;margin-top:6px;font-family:monospace;"></div>
+      <div id="pid-plant-params" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">PID Gains</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Proportional Kp</span><span class="ctrl-val" id="v-Kp">1.20</span></div>
+        <input type="range" id="sl-Kp" min="0" max="20" step="0.05" value="1.2" oninput="pidSlide('Kp',this.value)">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Integral Ki</span><span class="ctrl-val" id="v-Ki">0.30</span></div>
+        <input type="range" id="sl-Ki" min="0" max="10" step="0.02" value="0.3" oninput="pidSlide('Ki',this.value)">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Derivative Kd</span><span class="ctrl-val" id="v-Kd">0.10</span></div>
+        <input type="range" id="sl-Kd" min="0" max="10" step="0.02" value="0.1" oninput="pidSlide('Kd',this.value)">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Filter N</span><span class="ctrl-val" id="v-N">100</span></div>
+        <input type="range" id="sl-N" min="1" max="1000" step="1" value="100" oninput="pidSlide('N',this.value)">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Reference (setpoint)</span><span class="ctrl-val" id="v-ref">1.00</span></div>
+        <input type="range" id="sl-ref" min="-5" max="5" step="0.1" value="1.0" oninput="pidSlide('ref',this.value)">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Simulation duration (s)</span><span class="ctrl-val" id="v-tEnd">20</span></div>
+        <input type="range" id="sl-tEnd" min="5" max="100" step="1" value="20" oninput="pidSlide('tEnd',this.value)">
+      </div>
+      <button class="btn-primary" onclick="pidRun()">▶ Run Simulation</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="pidTab(0)">📈 Step Response</button>
+    <button class="tab-btn" onclick="pidTab(1)">📊 Bode Plot</button>
+    <button class="tab-btn" onclick="pidTab(2)">⭕ Root Locus</button>
+    <button class="tab-btn" onclick="pidTab(3)">⭕ Nyquist</button>
+    <button class="tab-btn" onclick="pidTab(4)">📐 Stability</button>
+    <button class="tab-btn" onclick="pidTab(5)">📚 Theory</button>
+  </div>
+
+  <div class="scroll-content" style="padding:12px;">
+    <!-- Tab 0: Step Response -->
+    <div class="tab-content active" id="pid-tab-0">
+      <div class="chart-wrap"><div id="chart-step" style="height:320px;"></div></div>
+      <div class="metrics-row" id="pid-metrics"></div>
+    </div>
+    <!-- Tab 1: Bode -->
+    <div class="tab-content" id="pid-tab-1">
+      <div class="chart-wrap"><div id="chart-bode" style="height:380px;"></div></div>
+    </div>
+    <!-- Tab 2: Root Locus -->
+    <div class="tab-content" id="pid-tab-2">
+      <div class="chart-wrap"><div id="chart-locus" style="height:360px;"></div></div>
+    </div>
+    <!-- Tab 3: Nyquist -->
+    <div class="tab-content" id="pid-tab-3">
+      <div class="chart-wrap"><div id="chart-nyquist" style="height:360px;"></div></div>
+    </div>
+    <!-- Tab 4: Stability -->
+    <div class="tab-content" id="pid-tab-4">
+      <div id="pid-stability-panel" style="padding:6px 0;"></div>
+    </div>
+    <!-- Tab 5: Theory -->
+    <div class="tab-content" id="pid-tab-5">
+      <div class="theory-box">
+        <h4>PID Control Law</h4>
+        <p>The PID controller computes:<br>
+           <code>u(t) = Kp·e + Ki·∫e dt + Kd·(de/dt)</code></p>
+        <p style="margin-top:8px;"><b>P</b> — reacts to current error (fast, leaves offset)<br>
+           <b>I</b> — eliminates steady-state error (accumulates history)<br>
+           <b>D</b> — anticipates future error via rate of change (damps overshoot)</p>
+        <p style="margin-top:8px;"><b>Derivative filter N</b>: practical D-term uses <code>Kd·N·s/(s+N)</code>.
+           High N ≈ ideal derivative but noisy; low N = smooth but less effective. Typical: 10–200.</p>
+      </div>
+      <div class="theory-box" style="border-color:#FF9800;">
+        <h4>Stability Margins (Rules of Thumb)</h4>
+        <table>
+          <tr><th>Margin</th><th>Target</th><th>Meaning</th></tr>
+          <tr><td>Phase Margin</td><td>&gt; 45°</td><td>Well-damped, robust</td></tr>
+          <tr><td>Gain Margin</td><td>&gt; 6 dB</td><td>Gain can 2× before instability</td></tr>
+          <tr><td>ζ (damping)</td><td>0.4–0.7</td><td>Approx. PM/100</td></tr>
+        </table>
+      </div>
+      <div class="theory-box" style="border-color:#4CAF50;">
+        <h4>Plant Models</h4>
+        <table>
+          <tr><th>Plant</th><th>Typical application</th></tr>
+          <tr><td>First Order</td><td>Temperature, RC circuit, level</td></tr>
+          <tr><td>Second Order</td><td>Mass-spring, DC motor position</td></tr>
+          <tr><td>Integrating</td><td>Level tank (integrating plant)</td></tr>
+          <tr><td>Unstable</td><td>Inverted pendulum, reactor</td></tr>
+          <tr><td>Third Order</td><td>Cascade thermal systems</td></tr>
+          <tr><td>Non-Min Phase</td><td>Boiler drum level (shrink-swell)</td></tr>
+          <tr><td>Dead-time</td><td>Pipeline flow, pH, distillation</td></tr>
+          <tr><td>Resonant</td><td>Flexible structure, satellite arm</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><!-- end pid-page -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PAGES 2-5 — "Coming Soon" shells with theory
+═══════════════════════════════════════════════════════════════════════════════ -->
+<div id="lqr-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showNav()">←</button>
+    <span class="page-title">🎯 LQR / LQG Optimal Control</span>
+  </div>
+  <div class="scroll-content" style="padding:12px;">
+    <div class="coming-soon">
+      <span class="cs-icon">🚧</span>
+      <h3>Interactive LQR/LQG Simulation</h3>
+      <p>Coming in v2.1 of the mobile app.<br>Available now in the web version at<br><b>Shreyas2552/controls-simulator</b> on Streamlit Cloud.</p>
+    </div>
+    <div class="theory-box">
+      <h4>LQR — Linear Quadratic Regulator</h4>
+      <p>Minimises cost J = ∫₀^∞ (x'Qx + u'Ru) dt by solving the Algebraic Riccati Equation:<br>
+         <code>A'P + PA - PBR⁻¹B'P + Q = 0</code><br>
+         Optimal gain K = R⁻¹B'P, control law u = −Kx.</p>
+    </div>
+    <div class="theory-box" style="border-color:#FF9800;">
+      <h4>Kalman Filter — State Estimator</h4>
+      <p>Dual of LQR. Minimises estimation error covariance given process noise Qn and measurement noise Rn.<br>
+         Solves: <code>APe + PeA' - PeC'Rn⁻¹CPe + Qn = 0</code><br>
+         Observer gain L = PeC'Rn⁻¹. Update: <code>x̂̇ = Ax̂ + Bu + L(y − Cx̂)</code></p>
+    </div>
+    <div class="theory-box" style="border-color:#4CAF50;">
+      <h4>Separation Principle (LQG)</h4>
+      <p>Combined LQR + Kalman filter. Eigenvalues of closed-loop system = eig(A−BK) ∪ eig(A−LC).<br>
+         LQR and Kalman can be designed independently — their combination is stable and optimal.</p>
+    </div>
+  </div>
+</div>
+
+<div id="mpc-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showNav()">←</button>
+    <span class="page-title">🤖 Model Predictive Control</span>
+  </div>
+  <div class="scroll-content" style="padding:12px;">
+    <div class="coming-soon">
+      <span class="cs-icon">🚧</span>
+      <h3>Interactive MPC Simulation</h3>
+      <p>Coming in v2.1 of the mobile app.</p>
+    </div>
+    <div class="theory-box">
+      <h4>MPC Cost Function</h4>
+      <p><code>J = Σ [y(k+i|k) − r(k+i)]'Q[...] + Σ Δu(k+j)'R[...]</code><br>
+         Optimised over prediction horizon Np, control horizon Nc at every timestep.</p>
+    </div>
+    <div class="theory-box" style="border-color:#FF9800;">
+      <h4>MPC vs LQR</h4>
+      <table>
+        <tr><th>Feature</th><th>LQR</th><th>MPC</th></tr>
+        <tr><td>Horizon</td><td>Infinite</td><td>Finite, receding</td></tr>
+        <tr><td>Constraints</td><td>None</td><td>Hard u_min/u_max</td></tr>
+        <tr><td>Online cost</td><td>None</td><td>QP per step</td></tr>
+        <tr><td>Stability</td><td>Guaranteed</td><td>With terminal constraint</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="advanced-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showNav()">←</button>
+    <span class="page-title">🎓 Advanced Topics &amp; Interview Prep</span>
+  </div>
+  <div class="scroll-content" style="padding:12px;">
+    <div class="coming-soon">
+      <span class="cs-icon">🚧</span>
+      <h3>Smith Predictor &amp; System ID Simulation</h3>
+      <p>Interactive simulations coming in v2.1.</p>
+    </div>
+    <div class="theory-box">
+      <h4>Smith Predictor</h4>
+      <p>Removes delay from the control loop. Error signal:<br>
+         <code>e_SP = r − y − (G_m·e^{−Ls} − G_m)·u</code><br>
+         Effective CL: T(s) = C(s)G(s)/(1+C(s)G(s)) · e^{−Ls}<br>
+         Delay only on output — NOT in characteristic equation. Much easier to tune.</p>
+    </div>
+    <div class="theory-box" style="border-color:#FF9800;">
+      <h4>FOPDT System Identification</h4>
+      <p>G(s) = K·e^{−Ls}/(τs+1) — three parameters from step response:<br>
+         K = y_ss/u_step | τ from 63.2% crossing | L from 5% crossing<br>
+         Cohen-Coon auto-tuning: Kp = (1.35/K)·(τ/L)·(1+0.185r),  r = L/τ</p>
+    </div>
+    <div class="theory-box" style="border-color:#9C27B0;">
+      <h4>Interview Quick Reference — Phase Margins</h4>
+      <table>
+        <tr><th>PM</th><th>Behavior</th><th>ζ approx</th></tr>
+        <tr><td>&gt;60°</td><td>Well-damped, slow</td><td>~0.6</td></tr>
+        <tr><td>45°</td><td>Good balance</td><td>~0.45</td></tr>
+        <tr><td>30°</td><td>Lightly damped</td><td>~0.3</td></tr>
+        <tr><td>&lt;0°</td><td>Unstable CL</td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="strategies-page" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="showNav()">←</button>
+    <span class="page-title">🔗 Control Strategies</span>
+  </div>
+  <div class="scroll-content" style="padding:12px;">
+    <div class="coming-soon">
+      <span class="cs-icon">🚧</span>
+      <h3>Cascade, IMC/SIMC, Feedforward &amp; SMC Simulations</h3>
+      <p>Interactive simulations coming in v2.1.</p>
+    </div>
+    <div class="theory-box">
+      <h4>Cascade Control</h4>
+      <p>Inner loop bandwidth ≥ 3× outer loop. Rejects disturbances entering between loops before they reach the outer output.</p>
+    </div>
+    <div class="theory-box" style="border-color:#FF9800;">
+      <h4>SIMC Tuning (Skogestad IMC)</h4>
+      <p>Single tuning parameter λ (desired CL time constant):<br>
+         <code>Kp = τ/(K·(λ+θ))</code>,  <code>Ti = min(τ, 4(λ+θ))</code><br>
+         λ = θ → aggressive, λ = 5τ → conservative. Best single-parameter PID method.</p>
+    </div>
+    <div class="theory-box" style="border-color:#4CAF50;">
+      <h4>Sliding Mode Control</h4>
+      <p>Sliding surface s = ė + c·e. Control drives state to surface (s=0) then slides to origin.<br>
+         u = u_eq + K·sat(s/φ). Boundary layer φ eliminates chattering at expense of steady-state error.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showNav() {
+  document.getElementById('nav-screen').style.display = 'flex';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+}
+function showPage(id) {
+  document.getElementById('nav-screen').style.display = 'none';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'pid-page') pidRun();
+}
+
+// ── Plot config ─────────────────────────────────────────────────────────────
+const LAYOUT = {
+  paper_bgcolor: '#0e1117', plot_bgcolor: '#0e1117',
+  font: { color: '#e0e0e0', size: 11 },
+  margin: { l: 50, r: 16, t: 30, b: 50 },
+  legend: { bgcolor: 'rgba(0,0,0,0.5)', bordercolor: '#333', font: { size: 10 } },
+  xaxis: { gridcolor: 'rgba(255,255,255,0.07)', linecolor: '#444', zerolinecolor: '#555' },
+  yaxis: { gridcolor: 'rgba(255,255,255,0.07)', linecolor: '#444', zerolinecolor: '#555' },
+};
+const PLT_CFG = { displayModeBar: false, responsive: true };
+
+// ── PID State ───────────────────────────────────────────────────────────────
+const pid = {
+  Kp: 1.2, Ki: 0.3, Kd: 0.1, N: 100, ref: 1.0, tEnd: 20,
+  plant: 'First Order', plantParams: {},
+};
+
+function pidSlide(key, val) {
+  pid[key] = parseFloat(val);
+  document.getElementById('v-' + key).textContent = parseFloat(val).toFixed(
+    key === 'N' ? 0 : key === 'tEnd' ? 0 : 2
+  );
+}
+
+// Populate plant selector
+(function initPlantSelector() {
+  const sel = document.getElementById('pid-plant');
+  Object.keys(CS.PLANTS).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  pidUpdatePlantParams();
+})();
+
+function pidUpdatePlantParams() {
+  const name = document.getElementById('pid-plant').value;
+  pid.plant = name;
+  const info = CS.PLANTS[name];
+  document.getElementById('pid-plant-label').textContent = info.label;
+
+  const container = document.getElementById('pid-plant-params');
+  container.innerHTML = '';
+  pid.plantParams = {};
+  for (const [key, spec] of Object.entries(info.params)) {
+    pid.plantParams[key] = spec.default;
+    container.innerHTML += `
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>${spec.label}</span><span class="ctrl-val" id="pv-${key}">${spec.default.toFixed(2)}</span></div>
+        <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
+          oninput="pidPlantParam('${key}', this.value)">
+      </div>`;
+  }
+}
+
+function pidPlantParam(key, val) {
+  pid.plantParams[key] = parseFloat(val);
+  const el = document.getElementById('pv-' + key);
+  if (el) el.textContent = parseFloat(val).toFixed(2);
+}
+
+// ── PID Tab switching ────────────────────────────────────────────────────────
+let _pidActiveTab = 0;
+function pidTab(n) {
+  document.querySelectorAll('#pid-page .tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', i === n));
+  document.querySelectorAll('#pid-page .tab-content').forEach((c, i) =>
+    c.classList.toggle('active', i === n));
+  _pidActiveTab = n;
+  pidRender();
+}
+
+// ── Main simulation ─────────────────────────────────────────────────────────
+let _pidResult = null;
+
+function pidRun() {
+  try {
+    const plant = CS.PLANTS[pid.plant];
+    const { num: pNum, den: pDen } = plant.tf(pid.plantParams);
+    const { num: cNum, den: cDen } = CS.pidTF(pid.Kp, pid.Ki, pid.Kd, pid.N);
+    const { olNum, olDen, clNum, clDen } = CS.buildOLCL(pNum, pDen, cNum, cDen);
+
+    const { t, y } = CS.stepResponse(clNum, clDen, pid.tEnd, 600);
+    const margins = CS.stabilityMargins(olNum, olDen);
+    const metrics = CS.performanceMetrics(t, y, pid.ref);
+
+    // Scale for reference
+    const yScaled = y.map(v => v * pid.ref);
+    const tRef = t.map(() => pid.ref);
+
+    _pidResult = { t, y: yScaled, tRef, margins, metrics: {...metrics, ss: metrics.ss * pid.ref},
+                   olNum, olDen, clNum, clDen, pNum, pDen, cNum, cDen };
+
+    pidRender();
+  } catch(e) {
+    console.error('PID simulation error:', e);
+  }
+}
+
+function pidRender() {
+  if (!_pidResult) return;
+  const { t, y, tRef, margins, metrics, olNum, olDen, clNum, clDen } = _pidResult;
+
+  if (_pidActiveTab === 0) renderStep(t, y, tRef, metrics);
+  if (_pidActiveTab === 1) renderBode(olNum, olDen);
+  if (_pidActiveTab === 2) renderLocus(olNum, olDen);
+  if (_pidActiveTab === 3) renderNyquist(olNum, olDen);
+  if (_pidActiveTab === 4) renderStability(margins, metrics);
+}
+
+// ── Step Response ───────────────────────────────────────────────────────────
+function renderStep(t, y, tRef, metrics) {
+  const traces = [
+    { x: t, y: tRef, name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+    { x: t, y: y,    name: 'Output y(t)', line: { color: '#4CAF50', width: 2.5 } },
+  ];
+  Plotly.react('chart-step', traces, {
+    ...LAYOUT,
+    xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' },
+    yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+    title: { text: 'Step Response', font: { size: 12 } },
+  }, PLT_CFG);
+
+  // Metrics
+  const pm = isFinite(margins.pm_deg) ? margins.pm_deg.toFixed(1) + '°' : '∞';
+  const gm = isFinite(margins.gm_db)  ? margins.gm_db.toFixed(1) + ' dB' : '∞';
+  const pmColor = margins.pm_deg < 30 ? 'red' : margins.pm_deg < 45 ? 'orange' : 'green';
+  document.getElementById('pid-metrics').innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Overshoot</div>
+      <div class="metric-value ${metrics.os > 20 ? 'orange' : 'green'}">${metrics.os.toFixed(1)}%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">SS Error</div>
+      <div class="metric-value ${metrics.ssError > 0.05 ? 'orange' : 'green'}">${metrics.ssError.toFixed(4)}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Rise Time</div>
+      <div class="metric-value">${metrics.riseTime ? metrics.riseTime.toFixed(2) + 's' : 'N/A'}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Phase Margin</div>
+      <div class="metric-value ${pmColor}">${pm}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Gain Margin</div>
+      <div class="metric-value">${gm}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Settle (2%)</div>
+      <div class="metric-value">${metrics.settleTime ? metrics.settleTime.toFixed(2) + 's' : 'N/A'}</div>
+    </div>
+  `;
+}
+
+// ── Bode Plot ────────────────────────────────────────────────────────────────
+function renderBode(olNum, olDen) {
+  const { freqs, magdB, phase } = CS.bodeData(olNum, olDen, 400);
+  const layout = {
+    ...LAYOUT,
+    grid: { rows: 2, columns: 1, pattern: 'independent' },
+    height: 380,
+    xaxis:  { ...LAYOUT.xaxis, title: '', type: 'log' },
+    yaxis:  { ...LAYOUT.yaxis, title: 'Magnitude (dB)' },
+    xaxis2: { ...LAYOUT.xaxis, title: 'Frequency (rad/s)', type: 'log' },
+    yaxis2: { ...LAYOUT.yaxis, title: 'Phase (deg)' },
+  };
+  Plotly.react('chart-bode', [
+    { x: freqs, y: magdB,  name: 'Magnitude', xaxis:'x', yaxis:'y',  line: { color: '#2196F3', width: 2 } },
+    { x: freqs, y: phase,  name: 'Phase',     xaxis:'x2', yaxis:'y2', line: { color: '#FF9800', width: 2 } },
+  ], layout, PLT_CFG);
+}
+
+// ── Root Locus ───────────────────────────────────────────────────────────────
+function renderLocus(olNum, olDen) {
+  const { paths, olPoles, olZeros } = CS.rootLocus(olNum, olDen, 200);
+  const traces = paths.map((p, i) => ({
+    x: p.re, y: p.im, mode: 'lines', name: `Branch ${i+1}`,
+    line: { color: '#607D8B', width: 1.5 }, showlegend: false,
+  }));
+  // Open-loop poles
+  traces.push({
+    x: olPoles.map(r => r ? r[0] : 0), y: olPoles.map(r => r ? r[1] : 0),
+    mode: 'markers', name: 'OL Poles',
+    marker: { color: '#F44336', symbol: 'x', size: 10 },
+  });
+  if (olZeros.length > 0) {
+    traces.push({
+      x: olZeros.map(r => r ? r[0] : 0), y: olZeros.map(r => r ? r[1] : 0),
+      mode: 'markers', name: 'OL Zeros',
+      marker: { color: '#2196F3', symbol: 'circle-open', size: 10, line: { width: 2 } },
+    });
+  }
+  // Imaginary axis
+  traces.push({ x: [0, 0], y: [-20, 20], mode: 'lines', showlegend: false,
+    line: { color: 'rgba(255,255,255,0.2)', dash: 'dash', width: 1 } });
+
+  Plotly.react('chart-locus', traces, {
+    ...LAYOUT,
+    xaxis: { ...LAYOUT.xaxis, title: 'Real', zeroline: true },
+    yaxis: { ...LAYOUT.yaxis, title: 'Imaginary', scaleanchor: 'x' },
+    title: { text: 'Root Locus (K: 0 → 20)', font: { size: 12 } },
+  }, PLT_CFG);
+}
+
+// ── Nyquist Plot ─────────────────────────────────────────────────────────────
+function renderNyquist(olNum, olDen) {
+  const { re, im } = CS.nyquistData(olNum, olDen, 500);
+  // Clip extreme values for display
+  const clip = (v, lim) => Math.max(-lim, Math.min(lim, v));
+  const rC = re.map(v => clip(v, 20));
+  const iC = im.map(v => clip(v, 20));
+  Plotly.react('chart-nyquist', [
+    { x: rC, y: iC,              name: 'ω > 0', line: { color: '#2196F3', width: 2 } },
+    { x: rC, y: iC.map(v => -v), name: 'ω < 0', line: { color: '#4CAF50', dash: 'dash', width: 1.5 } },
+    { x: [-1], y: [0], mode: 'markers', name: '-1 point',
+      marker: { color: '#F44336', symbol: 'x', size: 14, line: { width: 3 } } },
+  ], {
+    ...LAYOUT,
+    xaxis: { ...LAYOUT.xaxis, title: 'Real', zeroline: true },
+    yaxis: { ...LAYOUT.yaxis, title: 'Imaginary', scaleanchor: 'x' },
+    title: { text: 'Nyquist Diagram', font: { size: 12 } },
+  }, PLT_CFG);
+}
+
+// ── Stability Panel ──────────────────────────────────────────────────────────
+function renderStability(margins, metrics) {
+  const pm = margins.pm_deg, gm = margins.gm_db;
+  const stable = pm > 0 && gm > 0;
+  const pmStr  = isFinite(pm) ? pm.toFixed(1) + '°' : '∞ (no 0dB crossing)';
+  const gmStr  = isFinite(gm) ? gm.toFixed(1) + ' dB' : '∞ (no −180° crossing)';
+  const badgeCls = stable ? 'badge-green' : 'badge-red';
+  const wgcStr = margins.wgc ? margins.wgc.toFixed(3) + ' rad/s' : '—';
+  const wpcStr = margins.wpc ? margins.wpc.toFixed(3) + ' rad/s' : '—';
+
+  document.getElementById('pid-stability-panel').innerHTML = `
+    <div class="panel">
+      <div class="panel-title">Closed-Loop Verdict</div>
+      <span class="badge ${badgeCls}" style="font-size:1rem;padding:6px 20px;">
+        ${stable ? '✅ STABLE' : '❌ UNSTABLE'}
+      </span>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Stability Margins</div>
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Phase Margin (PM)</div>
+          <div class="metric-value ${pm < 30 ? 'red' : pm < 45 ? 'orange' : 'green'}">${pmStr}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Gain Margin (GM)</div>
+          <div class="metric-value ${isFinite(gm) && gm < 6 ? 'orange' : 'green'}">${gmStr}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Gain Crossover ωgc</div>
+          <div class="metric-value">${wgcStr}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Phase Crossover ωpc</div>
+          <div class="metric-value">${wpcStr}</div>
+        </div>
+      </div>
+    </div>
+    <div class="theory-box" style="margin-top:8px;">
+      <h4>How to read these margins</h4>
+      <p><b>Phase Margin (PM)</b>: How many more degrees of phase lag the system can tolerate before going unstable. PM&gt;45° is robust.<br><br>
+         <b>Gain Margin (GM)</b>: How much the gain can increase before instability. GM&gt;6dB means gain can double (×2).<br><br>
+         <b>Both must be positive</b> for a stable closed-loop system.</p>
+    </div>
+  `;
+}
+
+// Init on load
+window.addEventListener('load', () => {
+  pidRun();
+});
+</script>
+</body>
+</html>

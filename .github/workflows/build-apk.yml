@@ -1,0 +1,180 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── JDK ───────────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ── Download Plotly.js into assets ────────────────────────────────────
+      - name: Download Plotly.js
+        run: |
+          mkdir -p android/app/src/main/assets/lib
+          curl -L "https://cdn.plot.ly/plotly-2.32.0.min.js" \
+               -o android/app/src/main/assets/lib/plotly.min.js
+          echo "Plotly size: $(wc -c < android/app/src/main/assets/lib/plotly.min.js) bytes"
+
+      # ── Launcher icon (simple SVG→PNG via Python) ─────────────────────────
+      - name: Generate launcher icon
+        run: |
+          python3 - <<'PYEOF'
+          import struct, zlib, base64, os
+
+          # Tiny 192x192 PNG with gear emoji feel (solid blue square + gear symbol)
+          # We use a 1x1 pixel trick with RGBA (32x32 is minimum readable icon)
+          # Actually generate a proper PNG programmatically
+          def make_png(size=192):
+              width = height = size
+              # Dark blue background with "⚙" symbol is complex; use simple colored square
+              # RGBA: dark background
+              bg = (14, 17, 23, 255)   # #0e1117
+              ac = (33, 150, 243, 255)  # #2196F3 blue
+
+              rows = []
+              for y in range(height):
+                  row = bytearray()
+                  row.append(0)  # filter type
+                  for x in range(width):
+                      # Draw a simple "⚙" as block pattern
+                      cx, cy = x - width//2, y - height//2
+                      r = (cx*cx + cy*cy) ** 0.5
+                      inner = width * 0.15
+                      outer = width * 0.35
+                      # Outer ring
+                      if inner <= r <= outer:
+                          c = ac
+                      else:
+                          c = bg
+                      row.extend(c)
+                  rows.append(bytes(row))
+
+              raw = b''.join(rows)
+              compressed = zlib.compress(raw, 9)
+
+              def chunk(name, data):
+                  c = name + data
+                  crc = zlib.crc32(c) & 0xffffffff
+                  return struct.pack('>I', len(data)) + c + struct.pack('>I', crc)
+
+              png = b'\x89PNG\r\n\x1a\n'
+              png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+              # Wait, IHDR for RGBA needs color type 6
+              ihdr_data = struct.pack('>II', width, height) + bytes([8, 6, 0, 0, 0])
+              png = b'\x89PNG\r\n\x1a\n'
+              ihdr = b'IHDR'
+              crc = zlib.crc32(ihdr + ihdr_data) & 0xffffffff
+              png += struct.pack('>I', len(ihdr_data)) + ihdr + ihdr_data + struct.pack('>I', crc)
+
+              idat = b'IDAT'
+              crc = zlib.crc32(idat + compressed) & 0xffffffff
+              png += struct.pack('>I', len(compressed)) + idat + compressed + struct.pack('>I', crc)
+
+              iend = b'IEND'
+              crc = zlib.crc32(iend) & 0xffffffff
+              png += struct.pack('>I', 0) + iend + struct.pack('>I', crc)
+
+              return png
+
+          icon_dir = 'android/app/src/main/res/mipmap-xxxhdpi'
+          os.makedirs(icon_dir, exist_ok=True)
+          png_data = make_png(192)
+          with open(f'{icon_dir}/ic_launcher.png', 'wb') as f:
+              f.write(png_data)
+          with open(f'{icon_dir}/ic_launcher_round.png', 'wb') as f:
+              f.write(png_data)
+          print(f"Icons created: {len(png_data)} bytes each")
+          PYEOF
+
+      # ── Make gradlew executable ────────────────────────────────────────────
+      - name: Setup Gradle wrapper
+        run: |
+          cd android
+          # Download gradle wrapper jar if not present
+          mkdir -p gradle/wrapper
+          curl -L "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
+               -o gradle/wrapper/gradle-wrapper.jar 2>/dev/null || \
+          # Fallback: use gradle directly
+          wget -q "https://services.gradle.org/distributions/gradle-8.4-bin.zip" -P /tmp
+
+          cat > gradlew <<'EOF'
+          #!/bin/sh
+          exec gradle "$@"
+          EOF
+          chmod +x gradlew
+
+      # ── Install Gradle ────────────────────────────────────────────────────
+      - name: Install Gradle 8.4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
+
+      # ── Android SDK ───────────────────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ── Build debug APK ───────────────────────────────────────────────────
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      # ── Rename APK ────────────────────────────────────────────────────────
+      - name: Rename APK
+        run: |
+          APK_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK_DST="ControlsSimulator-v2.0.apk"
+          cp "$APK_SRC" "$APK_DST"
+          echo "APK size: $(du -sh $APK_DST | cut -f1)"
+
+      # ── Upload artifact ───────────────────────────────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControlsSimulator-APK
+          path: ControlsSimulator-v2.0.apk
+          retention-days: 30
+
+      # ── Create/update GitHub Release ──────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0-apk
+          name: "Control Systems Simulator v2.0 — Android APK"
+          body: |
+            ## Control Systems Simulator v2.0 — Android APK
+
+            ### Install
+            1. Download `ControlsSimulator-v2.0.apk`
+            2. On Android: Settings → Security → Unknown sources → ON
+            3. Open the downloaded APK and tap Install
+
+            ### What's in this release
+            - ✅ **PID Control Simulator** — 8 plants, step response, Bode, root locus, Nyquist, stability margins
+            - 📚 **LQR/LQG, MPC, Advanced, Control Strategies** — theory reference cards (interactive simulations coming in v2.1)
+            - Fully **offline** — no internet required after install
+            - Works on Android 7.0+ (API 24+)
+
+            ### Requirements
+            - Android 7.0+ (Nougat), API level 24+
+            - ~8 MB storage
+
+            > Full interactive simulations available at the Streamlit Cloud web app.
+          files: ControlsSimulator-v2.0.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
