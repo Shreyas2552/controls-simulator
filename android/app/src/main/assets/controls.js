@@ -690,10 +690,93 @@ const SS_PLANTS = {
     },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MPC — Build prediction matrices Phi (Np×n) and Psi (Np×Nc)  [SISO]
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPredMatrices(Ad, Bd_col, C_row, Np, Nc) {
+    const n = Ad.length;
+    const AdPow = [Mat.eye(n)];
+    for (let k = 1; k <= Np; k++) AdPow.push(Mat.mul(AdPow[k - 1], Ad));
+
+    // cAkB[k] = C * Ad^k * Bd  (scalar, SISO)
+    const cAkB = AdPow.map(Ak => {
+        const AkBd = Mat.mul(Ak, Bd_col);
+        return C_row.reduce((s, ci, i) => s + ci * AkBd[i][0], 0);
+    });
+
+    // Phi[i] = 1D row = C * Ad^(i+1),  Np×n
+    const Phi = AdPow.slice(1).map(Ak =>
+        Array.from({ length: n }, (_, j) => C_row.reduce((s, ck, k) => s + ck * Ak[k][j], 0))
+    );
+
+    // Psi[i,j]: hold-last-input convention
+    const Psi = Array.from({ length: Np }, (_, i) =>
+        Array.from({ length: Nc }, (_, j) => {
+            if (i < j) return 0;
+            if (j < Nc - 1) return cAkB[i - j];
+            let acc = 0;
+            for (let l = 0; l <= i - (Nc - 1); l++) acc += cAkB[l];
+            return acc;
+        })
+    );
+    return { Phi, Psi };
+}
+
+// Precompute offline part: MinvPsiTQy (Nc×Np) for given Qy, Ru
+function precomputeMPC(Phi, Psi, Qy, Ru) {
+    const Nc = Psi[0].length;
+    const PsiT = Psi[0].map((_, j) => Psi.map(r => r[j]));       // Nc×Np
+    const M = Mat.mul(PsiT, Psi).map((row, i) =>
+        row.map((v, j) => Qy * v + (i === j ? Ru : 0)));          // Nc×Nc
+    const Minv = Mat.inv(M);
+    if (!Minv) return null;
+    return Mat.scale(Mat.mul(Minv, PsiT), Qy);                    // Nc×Np
+}
+
+// Simulate MPC (discrete-time receding horizon)
+function simulateMPC(A, B_col, C_row, Np, Nc, Qy, Ru, ref, tEnd, dt, uMin, uMax, qNoise, seed) {
+    const { Ad, Bd } = discretizeSS(A, B_col, dt);
+    const { Phi, Psi } = buildPredMatrices(Ad, Bd, C_row, Np, Nc);
+    const MinvPsiTQy = precomputeMPC(Phi, Psi, Qy, Ru);
+    if (!MinvPsiTQy) return { t: [], y: [], u: [], constrained: [] };
+
+    const n = A.length;
+    const steps = Math.floor(tEnd / dt);
+    const skip  = Math.max(1, Math.floor(steps / 800));
+    const t_out = [], y_out = [], u_out = [], constrained = [];
+    let x = new Array(n).fill(0);
+
+    let s = (seed || 42) >>> 0;
+    const rng = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let tt = Math.imul(s ^ s >>> 15, 1 | s); tt = tt + Math.imul(tt ^ tt >>> 7, 61 | tt) ^ tt; return ((tt ^ tt >>> 14) >>> 0) / 4294967296; };
+    const randn = () => { const u1 = rng(), u2 = rng(); return Math.sqrt(-2 * Math.log(u1 + 1e-15)) * Math.cos(2 * Math.PI * u2); };
+
+    for (let k = 0; k < steps; k++) {
+        // err[i] = ref - Phi[i]·x
+        const err = Phi.map(row => ref - row.reduce((s, v, j) => s + v * x[j], 0));
+        // u_opt = MinvPsiTQy[0] · err
+        const uOpt = MinvPsiTQy[0].reduce((s, v, i) => s + v * err[i], 0);
+        const uApp = Math.max(uMin, Math.min(uMax, uOpt));
+
+        if (k % skip === 0) {
+            t_out.push(+(k * dt).toFixed(5));
+            y_out.push(C_row.reduce((s, ci, i) => s + ci * x[i], 0));
+            u_out.push(uApp);
+            constrained.push(Math.abs(uApp - uOpt) > 1e-6);
+        }
+
+        // x_{k+1} = Ad*x + Bd*u + noise
+        const Adx = Mat.mvm(Ad, x);
+        const noise = qNoise > 0 ? new Array(n).fill(0).map(() => qNoise * randn()) : new Array(n).fill(0);
+        x = Bd.map((row, i) => Adx[i] + row[0] * uApp + noise[i]);
+    }
+    return { t: t_out, y: y_out, u: u_out, constrained };
+}
+
 // Export everything on the window object (for use from inline HTML scripts)
 window.CS = {
     Poly, C, tf2ss, stepResponse, bodeData, stabilityMargins,
     rootLocus, performanceMetrics, PLANTS, pidTF, buildOLCL, nyquistData,
     Mat, discretizeSS, solveDARE, lqrDesign, kalmanDesign,
     simulateLQR, simulateLQG, SS_PLANTS,
+    buildPredMatrices, precomputeMPC, simulateMPC,
 };

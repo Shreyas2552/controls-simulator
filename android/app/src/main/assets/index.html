@@ -263,26 +263,101 @@
     <button class="back-btn" onclick="showNav()">←</button>
     <span class="page-title">🤖 Model Predictive Control</span>
   </div>
+
+  <div style="padding:12px 12px 0;">
+    <div class="panel">
+      <div class="panel-title">Plant</div>
+      <select id="mpc-plant" onchange="mpcUpdatePlant()"></select>
+      <div id="mpc-plant-desc" style="font-size:0.75rem;color:#8b949e;margin-top:4px;"></div>
+      <div id="mpc-plant-params" style="margin-top:10px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">MPC Horizons &amp; Weights</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Prediction Np</span><span class="ctrl-val" id="mpc-v-Np">15</span></div>
+        <input type="range" min="5" max="40" step="1" value="15"
+               oninput="mpcState.Np=+this.value;document.getElementById('mpc-v-Np').textContent=this.value;">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Control horizon Nc</span><span class="ctrl-val" id="mpc-v-Nc">3</span></div>
+        <input type="range" min="1" max="10" step="1" value="3"
+               oninput="mpcState.Nc=+this.value;document.getElementById('mpc-v-Nc').textContent=this.value;">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Output weight Qy</span><span class="ctrl-val" id="mpc-v-Qy">10</span></div>
+        <input type="range" min="0.1" max="200" step="0.1" value="10"
+               oninput="mpcState.Qy=+this.value;document.getElementById('mpc-v-Qy').textContent=(+this.value).toFixed(1);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Control weight Ru</span><span class="ctrl-val" id="mpc-v-Ru">1</span></div>
+        <input type="range" min="0.01" max="50" step="0.01" value="1"
+               oninput="mpcState.Ru=+this.value;document.getElementById('mpc-v-Ru').textContent=(+this.value).toFixed(2);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Sampling dt (s)</span><span class="ctrl-val" id="mpc-v-dt">0.05</span></div>
+        <input type="range" min="0.01" max="0.2" step="0.005" value="0.05"
+               oninput="mpcState.dt=+this.value;document.getElementById('mpc-v-dt').textContent=(+this.value).toFixed(3);">
+      </div>
+      <div class="panel-title" style="margin-top:10px;">Constraints &amp; Noise</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>u_min</span><span class="ctrl-val" id="mpc-v-umin">-10</span></div>
+        <input type="range" min="-50" max="0" step="0.5" value="-10"
+               oninput="mpcState.uMin=+this.value;document.getElementById('mpc-v-umin').textContent=(+this.value).toFixed(1);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>u_max</span><span class="ctrl-val" id="mpc-v-umax">10</span></div>
+        <input type="range" min="0" max="50" step="0.5" value="10"
+               oninput="mpcState.uMax=+this.value;document.getElementById('mpc-v-umax').textContent=(+this.value).toFixed(1);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Process noise σ</span><span class="ctrl-val" id="mpc-v-noise">0</span></div>
+        <input type="range" min="0" max="1" step="0.01" value="0"
+               oninput="mpcState.noise=+this.value;document.getElementById('mpc-v-noise').textContent=(+this.value).toFixed(2);">
+      </div>
+      <button class="btn-primary" id="mpc-run-btn" onclick="mpcRun()">▶ Run Simulation</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="mpcTab(0)">📈 Response</button>
+    <button class="tab-btn"        onclick="mpcTab(1)">🎛️ Control u(t)</button>
+    <button class="tab-btn"        onclick="mpcTab(2)">📚 Theory</button>
+  </div>
+
   <div class="scroll-content" style="padding:12px;">
-    <div class="coming-soon">
-      <span class="cs-icon">🚧</span>
-      <h3>Interactive MPC Simulation</h3>
-      <p>Coming in v2.1 of the mobile app.</p>
+    <div class="tab-content active" id="mpc-tab-0">
+      <div class="chart-wrap"><div id="chart-mpc-y" style="height:300px;"></div></div>
+      <div class="metrics-row" id="mpc-metrics"></div>
     </div>
-    <div class="theory-box">
-      <h4>MPC Cost Function</h4>
-      <p><code>J = Σ [y(k+i|k) − r(k+i)]'Q[...] + Σ Δu(k+j)'R[...]</code><br>
-         Optimised over prediction horizon Np, control horizon Nc at every timestep.</p>
+    <div class="tab-content" id="mpc-tab-1">
+      <div class="chart-wrap"><div id="chart-mpc-u" style="height:280px;"></div></div>
+      <div id="mpc-constraint-note" style="font-size:0.8rem;color:#FF9800;padding:8px 0;"></div>
     </div>
-    <div class="theory-box" style="border-color:#FF9800;">
-      <h4>MPC vs LQR</h4>
-      <table>
-        <tr><th>Feature</th><th>LQR</th><th>MPC</th></tr>
-        <tr><td>Horizon</td><td>Infinite</td><td>Finite, receding</td></tr>
-        <tr><td>Constraints</td><td>None</td><td>Hard u_min/u_max</td></tr>
-        <tr><td>Online cost</td><td>None</td><td>QP per step</td></tr>
-        <tr><td>Stability</td><td>Guaranteed</td><td>With terminal constraint</td></tr>
-      </table>
+    <div class="tab-content" id="mpc-tab-2">
+      <div class="theory-box">
+        <h4>MPC — Finite Horizon Optimal Control</h4>
+        <p>At each step k, solve:<br>
+           <code>min J = Σᵢ Qy·(y_{k+i|k}−r)² + Σⱼ Ru·u_{k+j}²</code><br>
+           subject to u_min ≤ u ≤ u_max<br><br>
+           Apply u₀ (receding horizon), repeat at k+1.</p>
+      </div>
+      <div class="theory-box" style="border-color:#FF9800;">
+        <h4>Prediction Matrices (unconstrained solution)</h4>
+        <p>Y = Φ·x + Ψ·U<br>
+           U_opt = (Qy·ΨᵀΨ + Ru·I)⁻¹ · Qy·Ψᵀ·(r·1 − Φ·x)<br><br>
+           Φ[i] = C·A_d^{i+1} · x  (free response)<br>
+           Ψ[i,j] = C·A_d^{i−j}·B_d  (forced response)</p>
+      </div>
+      <div class="theory-box" style="border-color:#4CAF50;">
+        <h4>MPC vs LQR</h4>
+        <table>
+          <tr><th>Feature</th><th>LQR</th><th>MPC</th></tr>
+          <tr><td>Horizon</td><td>Infinite</td><td>Finite, receding</td></tr>
+          <tr><td>Constraints</td><td>None</td><td>Hard u_min/u_max</td></tr>
+          <tr><td>Online cost</td><td>Lookup K</td><td>Solve QP</td></tr>
+          <tr><td>Stability</td><td>Guaranteed</td><td>With terminal set</td></tr>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -793,6 +868,119 @@ function lqrRender() {
         <div class="metric-value ${rmse > 0.1 ? 'orange' : 'green'}">${rmse.toFixed(4)}</div></div>
       <div class="metric-card"><div class="metric-label">Kalman gain L</div>
         <div class="metric-value" style="font-size:0.75rem;">[${L.map(v => v.toFixed(2)).join(', ')}]</div></div>`;
+  }
+}
+
+// ── MPC ─────────────────────────────────────────────────────────────────────
+const mpcState = {
+  plant: 'Mass-Spring-Damper', plantParams: {},
+  Np: 15, Nc: 3, Qy: 10, Ru: 1, dt: 0.05, uMin: -10, uMax: 10, noise: 0,
+};
+let _mpcActiveTab = 0, _mpcResult = null;
+
+(function initMPC() {
+  const sel = document.getElementById('mpc-plant');
+  Object.keys(CS.SS_PLANTS).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name; sel.appendChild(opt);
+  });
+  mpcUpdatePlant();
+})();
+
+function mpcUpdatePlant() {
+  const name = document.getElementById('mpc-plant').value;
+  mpcState.plant = name;
+  const info = CS.SS_PLANTS[name];
+  document.getElementById('mpc-plant-desc').textContent = info.desc;
+  const pContainer = document.getElementById('mpc-plant-params');
+  pContainer.innerHTML = '';
+  mpcState.plantParams = {};
+  for (const [key, spec] of Object.entries(info.params)) {
+    mpcState.plantParams[key] = spec.default;
+    pContainer.innerHTML += `
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>${spec.label}</span>
+          <span class="ctrl-val" id="mpcpv-${key}">${spec.default.toFixed(2)}</span></div>
+        <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
+          oninput="mpcState.plantParams['${key}']=parseFloat(this.value);
+                   document.getElementById('mpcpv-${key}').textContent=parseFloat(this.value).toFixed(2);">
+      </div>`;
+  }
+  _mpcResult = null;
+}
+
+function mpcTab(n) {
+  document.querySelectorAll('#mpc-page .tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
+  document.querySelectorAll('#mpc-page .tab-content').forEach((c, i) => c.classList.toggle('active', i === n));
+  _mpcActiveTab = n;
+  mpcRender();
+}
+
+function mpcRun() {
+  const btn = document.getElementById('mpc-run-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const info = CS.SS_PLANTS[mpcState.plant];
+      const { A, B, Cv } = info.ss(mpcState.plantParams);
+      const tEnd = Math.max(10, A.length * 8);
+      const res = CS.simulateMPC(A, B, Cv,
+        mpcState.Np, mpcState.Nc, mpcState.Qy, mpcState.Ru,
+        1.0, tEnd, mpcState.dt, mpcState.uMin, mpcState.uMax, mpcState.noise, 42);
+      _mpcResult = { ...res, tEnd };
+      mpcRender();
+    } catch(e) {
+      console.error('MPC error:', e);
+      document.getElementById('mpc-metrics').innerHTML =
+        `<div class="metric-card" style="grid-column:span 2;"><div class="metric-label">Error</div>
+         <div class="metric-value" style="font-size:0.8rem;color:#F44336;">${e.message}</div></div>`;
+    }
+    btn.textContent = '▶ Run Simulation'; btn.disabled = false;
+  }, 20);
+}
+
+function mpcRender() {
+  if (!_mpcResult) return;
+  const { t, y, u, constrained } = _mpcResult;
+  const ref = 1.0;
+
+  if (_mpcActiveTab === 0) {
+    const tRef = t.map(() => ref);
+    // Colour constraint regions
+    const uCap = u.map(() => mpcState.uMax);
+    Plotly.react('chart-mpc-y', [
+      { x: t, y: tRef, name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+      { x: t, y: y,    name: 'Output y(t)', line: { color: '#4CAF50', width: 2.5 } },
+    ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+         title: { text: `MPC Response  (Np=${mpcState.Np}, Nc=${mpcState.Nc})`, font: { size: 12 } } }, PLT_CFG);
+
+    const m = CS.performanceMetrics(t, y, ref);
+    const nConst = constrained.filter(Boolean).length;
+    document.getElementById('mpc-metrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Overshoot</div>
+        <div class="metric-value ${m.os > 20 ? 'orange' : 'green'}">${m.os.toFixed(1)}%</div></div>
+      <div class="metric-card"><div class="metric-label">SS Error</div>
+        <div class="metric-value ${m.ssError > 0.05 ? 'orange' : 'green'}">${m.ssError.toFixed(4)}</div></div>
+      <div class="metric-card"><div class="metric-label">Rise Time</div>
+        <div class="metric-value">${m.riseTime ? m.riseTime.toFixed(2) + 's' : 'N/A'}</div></div>
+      <div class="metric-card"><div class="metric-label">Constrained steps</div>
+        <div class="metric-value ${nConst > 0 ? 'orange' : 'green'}">${nConst}</div></div>`;
+  }
+
+  if (_mpcActiveTab === 1) {
+    const uLine = { x: t, y: u, name: 'u(t)', line: { color: '#9C27B0', width: 2 } };
+    const uMinLine = { x: [t[0], t[t.length-1]], y: [mpcState.uMin, mpcState.uMin],
+      name: 'u_min', line: { color: '#F44336', dash: 'dot', width: 1.5 }, mode: 'lines' };
+    const uMaxLine = { x: [t[0], t[t.length-1]], y: [mpcState.uMax, mpcState.uMax],
+      name: 'u_max', line: { color: '#F44336', dash: 'dot', width: 1.5 }, mode: 'lines' };
+    Plotly.react('chart-mpc-u', [uLine, uMinLine, uMaxLine],
+      { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'u(t)' },
+        title: { text: 'MPC Control Signal with Constraints', font: { size: 12 } } }, PLT_CFG);
+
+    const nConst = constrained.filter(Boolean).length;
+    document.getElementById('mpc-constraint-note').textContent =
+      nConst > 0 ? `⚠ Constraint active at ${nConst} steps — u clipped to [${mpcState.uMin}, ${mpcState.uMax}]`
+                 : '✅ Constraints not active — unconstrained solution applied';
   }
 }
 
