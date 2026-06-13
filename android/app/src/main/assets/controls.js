@@ -404,8 +404,296 @@ function nyquistData(olNum, olDen, nPts = 500) {
     return { freqs, re, im };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Matrix library — 2D arrays (array of rows)
+// ─────────────────────────────────────────────────────────────────────────────
+const Mat = {
+    zeros: (n, m = n) => Array.from({ length: n }, () => new Array(m).fill(0)),
+    eye:   (n) => Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 1 : 0)),
+    copy:  (A) => A.map(r => [...r]),
+    add:   (A, B) => A.map((r, i) => r.map((v, j) => v + B[i][j])),
+    sub:   (A, B) => A.map((r, i) => r.map((v, j) => v - B[i][j])),
+    scale: (A, s) => A.map(r => r.map(v => v * s)),
+    trans: (A) => A[0].map((_, j) => A.map(r => r[j])),
+    mul(A, B) {
+        const n = A.length, m = B[0].length, p = B.length;
+        return Array.from({ length: n }, (_, i) =>
+            Array.from({ length: m }, (_, j) =>
+                A[i].reduce((s, _, k) => s + A[i][k] * B[k][j], 0)));
+    },
+    mvm: (A, v) => A.map(row => row.reduce((s, a, j) => s + a * v[j], 0)),
+    norm: (A) => Math.sqrt(A.reduce((s, r) => s + r.reduce((rs, v) => rs + v * v, 0), 0)),
+    // Gauss-Jordan inverse
+    inv(A) {
+        const n = A.length;
+        const M = A.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => i === j ? 1 : 0)]);
+        for (let col = 0; col < n; col++) {
+            let pivot = col;
+            for (let row = col + 1; row < n; row++)
+                if (Math.abs(M[row][col]) > Math.abs(M[pivot][col])) pivot = row;
+            [M[col], M[pivot]] = [M[pivot], M[col]];
+            const d = M[col][col];
+            if (Math.abs(d) < 1e-14) return null;
+            for (let j = 0; j < 2 * n; j++) M[col][j] /= d;
+            for (let row = 0; row < n; row++) {
+                if (row === col) continue;
+                const f = M[row][col];
+                for (let j = 0; j < 2 * n; j++) M[row][j] -= f * M[col][j];
+            }
+        }
+        return M.map(r => r.slice(n));
+    },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discretise state-space: A_d = I + A*dt + (A*dt)²/2,  B_d = (A_d-I)*A⁻¹*B ≈ B*dt + A*B*dt²/2
+// B_col: n×1 2D array
+// ─────────────────────────────────────────────────────────────────────────────
+function discretizeSS(A, B_col, dt) {
+    const n = A.length;
+    const Adt  = Mat.scale(A, dt);
+    const Adt2 = Mat.scale(Mat.mul(Adt, Adt), 0.5);
+    const Ad   = Mat.add(Mat.add(Mat.eye(n), Adt), Adt2);
+    // Bd ≈ B*dt + A*B*dt²/2
+    const ABdt2 = Mat.scale(Mat.mul(A, B_col), 0.5 * dt * dt);
+    const Bd   = Mat.add(Mat.scale(B_col, dt), ABdt2);
+    return { Ad, Bd };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DARE solver — value iteration  (single input: R is scalar)
+// P_{k+1} = Qd + Ad'·P·Ad − (Ad'·P·Bd)·(R + Bd'·P·Bd)⁻¹·(Bd'·P·Ad)
+// ─────────────────────────────────────────────────────────────────────────────
+function solveDARE(Ad, Bd_col, Qd, R) {
+    const AdT = Mat.trans(Ad);
+    let P = Mat.copy(Qd);
+    for (let k = 0; k < 4000; k++) {
+        const PBd  = Mat.mul(P, Bd_col);          // n×1
+        const BtPB = Bd_col.reduce((s, row, i) => s + row[0] * PBd[i][0], 0); // scalar B'PB
+        const denom = R + BtPB;
+        const AtPBd = Mat.mul(AdT, PBd);           // n×1
+        // correction = (Ad'PBd)(Bd'PAd)/denom = outer(AtPBd,AtPBd)/denom (n×n)
+        const corr  = Mat.scale(Mat.mul(AtPBd, Mat.trans(AtPBd)), 1 / denom);
+        const AtPAd = Mat.mul(AdT, Mat.mul(P, Ad)); // n×n
+        const Pnew  = Mat.sub(Mat.add(Qd, AtPAd), corr);
+        const diff  = Mat.norm(Mat.sub(Pnew, P));
+        P = Pnew;
+        if (diff < 1e-9) break;
+    }
+    return P;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LQR design: returns gain K (1×n flat array) and dc-feedforward Nbar (scalar)
+// ─────────────────────────────────────────────────────────────────────────────
+function lqrDesign(A, B_col, C_row, Q, R, dt = 0.01) {
+    const { Ad, Bd } = discretizeSS(A, B_col, dt);
+    const n = A.length;
+    // Q_d = Q*dt (maps continuous cost to discrete)
+    const Qd = Mat.scale(Q, dt);
+    const P  = solveDARE(Ad, Bd, Qd, R * dt);
+
+    // K = (R + Bd'PBd)^{-1} * Bd'*P*Ad  (1×n flat array)
+    const PBd  = Mat.mul(P, Bd);
+    const BtPB = Bd.reduce((s, row, i) => s + row[0] * PBd[i][0], 0);
+    const denom = R * dt + BtPB;
+    const BtPA = Mat.mul(Mat.trans(Bd), Mat.mul(P, Ad)); // 1×n
+    const K = BtPA[0].map(v => v / denom);               // flat 1D array
+
+    // Closed-loop A for Nbar: Acl = A - B*K
+    const BK = Mat.mul(B_col, [K]); // n×n
+    const Acl = Mat.sub(A, BK);
+    const AclInv = Mat.inv(Acl);
+    if (!AclInv) return { K, Nbar: 1 };
+    // Nbar = -1 / (C*(Acl^{-1})*B)
+    const CAclInvB = Mat.mvm(Mat.mul([C_row], AclInv), B_col.map(r => r[0]));
+    const Nbar = -1 / CAclInvB[0];
+    return { K, Nbar };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kalman design: returns observer gain L (n×1 flat array)
+// Dual of LQR: swap A→A', B→C', Q→Qn, R→Rn
+// ─────────────────────────────────────────────────────────────────────────────
+function kalmanDesign(A, B_col, C_row, Qn, Rn, dt = 0.01) {
+    const At = Mat.trans(A);
+    const Ct = C_row.map(v => [[v]]); // just for shape — C_row is 1D
+    // Build Ct as n×1 2D column
+    const CtCol = C_row.map(v => [v]);
+    const { Ad: AdT, Bd: CtdCol } = discretizeSS(At, CtCol, dt);
+    const Qnd = Mat.scale(Mat.eye(A.length), Qn * dt);
+    const Pe = solveDARE(AdT, CtdCol, Qnd, Rn * dt);
+    // L = Pe*C' / Rn  (n×1 flat)
+    const PeCt = Mat.mul(Pe, CtCol);   // n×1
+    const L = PeCt.map(row => row[0] / Rn);
+    return L;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LQR closed-loop simulation — RK4
+// Returns { t, y, x_hist, u_hist }
+// ─────────────────────────────────────────────────────────────────────────────
+function simulateLQR(A, B_col, C_row, K, Nbar, ref, tEnd, nPts = 600) {
+    const n = A.length;
+    const dt = tEnd / (nPts - 1);
+    const t = [], y = [], u_hist = [], x_hist = [];
+    let x = new Array(n).fill(0);
+
+    const f = (xv, uv) => {
+        const Ax = Mat.mvm(A, xv);
+        const Bu = B_col.map((row, i) => Ax[i] + row[0] * uv);
+        return Bu;
+    };
+
+    for (let k = 0; k < nPts; k++) {
+        t.push(k * dt);
+        const u = -K.reduce((s, ki, i) => s + ki * x[i], 0) + Nbar * ref;
+        y.push(C_row.reduce((s, ci, i) => s + ci * x[i], 0));
+        u_hist.push(u);
+        x_hist.push([...x]);
+        if (k < nPts - 1) {
+            const k1 = f(x, u);
+            const k2 = f(vAdd(x, vScale(k1, 0.5 * dt)), u);
+            const k3 = f(vAdd(x, vScale(k2, 0.5 * dt)), u);
+            const k4 = f(vAdd(x, vScale(k3, dt)), u);
+            x = vAdd(x, vScale(vAdd(k1, vAdd(vScale(k2, 2), vAdd(vScale(k3, 2), k4))), dt / 6));
+        }
+    }
+    return { t, y, u_hist, x_hist };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LQG simulation — RK4 with Kalman estimator
+// ─────────────────────────────────────────────────────────────────────────────
+function simulateLQG(A, B_col, C_row, K, Nbar, L, ref, tEnd, qStd, rStd, seed, nPts = 600) {
+    const n = A.length;
+    const dt = tEnd / (nPts - 1);
+
+    // Simple seeded random (Mulberry32)
+    let s = (seed || 42) >>> 0;
+    const rng = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const randn = () => { const u1 = rng(), u2 = rng(); return Math.sqrt(-2 * Math.log(u1 + 1e-15)) * Math.cos(2 * Math.PI * u2); };
+
+    const t = [], y_true = [], y_meas = [], y_est = [], u_hist = [];
+    let x = new Array(n).fill(0);
+    let xhat = new Array(n).fill(0);
+
+    const f_plant = (xv, uv) => {
+        const Ax = Mat.mvm(A, xv);
+        return B_col.map((row, i) => Ax[i] + row[0] * uv);
+    };
+    const f_obs = (xhv, uv, innov) => {
+        const Axh = Mat.mvm(A, xhv);
+        const BuL = B_col.map((row, i) => Axh[i] + row[0] * uv + L[i] * innov);
+        return BuL;
+    };
+
+    for (let k = 0; k < nPts; k++) {
+        t.push(k * dt);
+        const u   = -K.reduce((s, ki, i) => s + ki * xhat[i], 0) + Nbar * ref;
+        const ytrue = C_row.reduce((s, ci, i) => s + ci * x[i], 0);
+        const ymeas = ytrue + rStd * randn();
+        const yest  = C_row.reduce((s, ci, i) => s + ci * xhat[i], 0);
+        const innov = ymeas - yest;
+
+        y_true.push(ytrue);
+        y_meas.push(ymeas);
+        y_est.push(yest);
+        u_hist.push(u);
+
+        if (k < nPts - 1) {
+            // Plant (with process noise on states)
+            const w = new Array(n).fill(0).map(() => qStd * randn());
+            const k1p = f_plant(x, u).map((v, i) => v + w[i]);
+            const k2p = f_plant(vAdd(x, vScale(k1p, 0.5 * dt)), u).map((v, i) => v + w[i]);
+            const k3p = f_plant(vAdd(x, vScale(k2p, 0.5 * dt)), u).map((v, i) => v + w[i]);
+            const k4p = f_plant(vAdd(x, vScale(k3p, dt)), u).map((v, i) => v + w[i]);
+            x = vAdd(x, vScale(vAdd(k1p, vAdd(vScale(k2p, 2), vAdd(vScale(k3p, 2), k4p))), dt / 6));
+
+            // Observer
+            const k1o = f_obs(xhat, u, innov);
+            const k2o = f_obs(vAdd(xhat, vScale(k1o, 0.5 * dt)), u, innov);
+            const k3o = f_obs(vAdd(xhat, vScale(k2o, 0.5 * dt)), u, innov);
+            const k4o = f_obs(vAdd(xhat, vScale(k3o, dt)), u, innov);
+            xhat = vAdd(xhat, vScale(vAdd(k1o, vAdd(vScale(k2o, 2), vAdd(vScale(k3o, 2), k4o))), dt / 6));
+        }
+    }
+    return { t, y_true, y_meas, y_est, u_hist };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State-Space Plants for LQR/LQG
+// ─────────────────────────────────────────────────────────────────────────────
+const SS_PLANTS = {
+    "Mass-Spring-Damper": {
+        desc: "2nd-order: cart position & velocity",
+        states: ["Position x (m)", "Velocity ẋ (m/s)"],
+        refState: 0,
+        params: {
+            m:    { label: "Mass m (kg)",        default: 1.0, min: 0.1, max: 5,   step: 0.1 },
+            k:    { label: "Spring k (N/m)",     default: 2.0, min: 0.1, max: 20,  step: 0.1 },
+            b:    { label: "Damper b (N·s/m)",   default: 0.5, min: 0,   max: 5,   step: 0.1 },
+        },
+        defaultQ: [10, 1],
+        defaultR: 1,
+        ss({ m, k, b }) {
+            const A = [[0, 1], [-k / m, -b / m]];
+            const B = [[0], [1 / m]];
+            const Cv = [1, 0];
+            return { A, B, Cv };
+        },
+    },
+    "DC Motor": {
+        desc: "2nd-order: armature current & angular velocity",
+        states: ["Current i (A)", "Speed ω (rad/s)"],
+        refState: 1,
+        params: {
+            R:  { label: "Resistance R (Ω)",  default: 1.0, min: 0.1, max: 10, step: 0.1 },
+            L:  { label: "Inductance L (H)",  default: 0.5, min: 0.01, max: 2, step: 0.01 },
+            Km: { label: "Motor const Km",     default: 0.5, min: 0.1, max: 5,  step: 0.1 },
+            Kb: { label: "Back-EMF Kb",        default: 0.5, min: 0.1, max: 5,  step: 0.1 },
+            J:  { label: "Inertia J (kg·m²)", default: 0.1, min: 0.01, max: 1, step: 0.01 },
+            B:  { label: "Friction B",         default: 0.1, min: 0,   max: 2,  step: 0.05 },
+        },
+        defaultQ: [1, 10],
+        defaultR: 1,
+        ss({ R, L, Km, Kb, J, B }) {
+            const A = [[-R / L, -Kb / L], [Km / J, -B / J]];
+            const Bc = [[1 / L], [0]];
+            const Cv = [0, 1];
+            return { A, B: Bc, Cv };
+        },
+    },
+    "Inverted Pendulum": {
+        desc: "4th-order: cart position, velocity, angle, angular rate",
+        states: ["Cart x (m)", "Cart ẋ (m/s)", "Angle θ (rad)", "Ang. rate θ̇ (rad/s)"],
+        refState: 0,
+        params: {
+            M:  { label: "Cart mass M (kg)",  default: 1.0, min: 0.5, max: 5,   step: 0.1 },
+            mp: { label: "Pole mass m (kg)",  default: 0.2, min: 0.05, max: 1,  step: 0.05 },
+            lp: { label: "Pole half-len (m)", default: 0.5, min: 0.1, max: 2,   step: 0.05 },
+        },
+        defaultQ: [1, 0.1, 100, 10],
+        defaultR: 1,
+        ss({ M, mp, lp }) {
+            const g = 9.81;
+            const A = [
+                [0, 1, 0, 0],
+                [0, 0, -(mp * g) / M, 0],
+                [0, 0, 0, 1],
+                [0, 0, (M + mp) * g / (M * lp), 0],
+            ];
+            const Bc = [[0], [1 / M], [0], [-1 / (M * lp)]];
+            const Cv = [1, 0, 0, 0];
+            return { A, B: Bc, Cv };
+        },
+    },
+};
+
 // Export everything on the window object (for use from inline HTML scripts)
 window.CS = {
     Poly, C, tf2ss, stepResponse, bodeData, stabilityMargins,
     rootLocus, performanceMetrics, PLANTS, pidTF, buildOLCL, nyquistData,
+    Mat, discretizeSS, solveDARE, lqrDesign, kalmanDesign,
+    simulateLQR, simulateLQG, SS_PLANTS,
 };

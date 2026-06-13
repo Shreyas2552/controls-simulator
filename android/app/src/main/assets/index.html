@@ -180,28 +180,80 @@
     <button class="back-btn" onclick="showNav()">←</button>
     <span class="page-title">🎯 LQR / LQG Optimal Control</span>
   </div>
+
+  <div style="padding:12px 12px 0;">
+    <div class="panel">
+      <div class="panel-title">Plant</div>
+      <select id="lqr-plant" onchange="lqrUpdatePlant()"></select>
+      <div id="lqr-plant-desc" style="font-size:0.75rem;color:#8b949e;margin-top:4px;"></div>
+      <div id="lqr-plant-params" style="margin-top:10px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Cost Weights  (Q diagonal · R control)</div>
+      <div id="lqr-q-sliders"></div>
+      <div class="ctrl-row" style="margin-top:8px;">
+        <div class="ctrl-label"><span>R (control cost)</span><span class="ctrl-val" id="lqr-v-R">1.00</span></div>
+        <input type="range" id="lqr-sl-R" min="0.01" max="50" step="0.01" value="1"
+               oninput="document.getElementById('lqr-v-R').textContent=parseFloat(this.value).toFixed(2);lqrState.R=parseFloat(this.value);">
+      </div>
+      <div class="panel-title" style="margin-top:10px;">Noise (LQG tab)</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Process noise σq</span><span class="ctrl-val" id="lqr-v-Qn">0.10</span></div>
+        <input type="range" id="lqr-sl-Qn" min="0" max="2" step="0.01" value="0.1"
+               oninput="document.getElementById('lqr-v-Qn').textContent=parseFloat(this.value).toFixed(2);lqrState.Qn=parseFloat(this.value);">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Measurement noise σr</span><span class="ctrl-val" id="lqr-v-Rn">0.10</span></div>
+        <input type="range" id="lqr-sl-Rn" min="0.01" max="2" step="0.01" value="0.1"
+               oninput="document.getElementById('lqr-v-Rn').textContent=parseFloat(this.value).toFixed(2);lqrState.Rn=parseFloat(this.value);">
+      </div>
+      <button class="btn-primary" id="lqr-run-btn" onclick="lqrRun()">▶ Run Simulation</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="lqrTab(0)">📈 LQR Response</button>
+    <button class="tab-btn"        onclick="lqrTab(1)">🎛️ Control u(t)</button>
+    <button class="tab-btn"        onclick="lqrTab(2)">👁️ LQG Estimation</button>
+    <button class="tab-btn"        onclick="lqrTab(3)">📚 Theory</button>
+  </div>
+
   <div class="scroll-content" style="padding:12px;">
-    <div class="coming-soon">
-      <span class="cs-icon">🚧</span>
-      <h3>Interactive LQR/LQG Simulation</h3>
-      <p>Coming in v2.1 of the mobile app.<br>Available now in the web version at<br><b>Shreyas2552/controls-simulator</b> on Streamlit Cloud.</p>
+    <div class="tab-content active" id="lqr-tab-0">
+      <div class="chart-wrap"><div id="chart-lqr-step" style="height:300px;"></div></div>
+      <div class="metrics-row" id="lqr-metrics"></div>
     </div>
-    <div class="theory-box">
-      <h4>LQR — Linear Quadratic Regulator</h4>
-      <p>Minimises cost J = ∫₀^∞ (x'Qx + u'Ru) dt by solving the Algebraic Riccati Equation:<br>
-         <code>A'P + PA - PBR⁻¹B'P + Q = 0</code><br>
-         Optimal gain K = R⁻¹B'P, control law u = −Kx.</p>
+    <div class="tab-content" id="lqr-tab-1">
+      <div class="chart-wrap"><div id="chart-lqr-u" style="height:280px;"></div></div>
+      <div id="lqr-gain-panel" style="margin-top:10px;"></div>
     </div>
-    <div class="theory-box" style="border-color:#FF9800;">
-      <h4>Kalman Filter — State Estimator</h4>
-      <p>Dual of LQR. Minimises estimation error covariance given process noise Qn and measurement noise Rn.<br>
-         Solves: <code>APe + PeA' - PeC'Rn⁻¹CPe + Qn = 0</code><br>
-         Observer gain L = PeC'Rn⁻¹. Update: <code>x̂̇ = Ax̂ + Bu + L(y − Cx̂)</code></p>
+    <div class="tab-content" id="lqr-tab-2">
+      <div class="chart-wrap"><div id="chart-lqg-est" style="height:310px;"></div></div>
+      <div class="metrics-row" id="lqg-metrics"></div>
     </div>
-    <div class="theory-box" style="border-color:#4CAF50;">
-      <h4>Separation Principle (LQG)</h4>
-      <p>Combined LQR + Kalman filter. Eigenvalues of closed-loop system = eig(A−BK) ∪ eig(A−LC).<br>
-         LQR and Kalman can be designed independently — their combination is stable and optimal.</p>
+    <div class="tab-content" id="lqr-tab-3">
+      <div class="theory-box">
+        <h4>LQR — Linear Quadratic Regulator</h4>
+        <p>Minimises infinite-horizon cost:<br>
+           <code>J = ∫₀^∞ (x'Qx + u'Ru) dt</code><br><br>
+           Solve Algebraic Riccati Equation:<br>
+           <code>A'P + PA − PBR⁻¹B'P + Q = 0</code><br><br>
+           Optimal gain: <code>K = R⁻¹B'P</code>,  control law: <code>u = −Kx</code></p>
+      </div>
+      <div class="theory-box" style="border-color:#FF9800;">
+        <h4>Kalman Filter (dual of LQR)</h4>
+        <p>Solves: <code>APe + PeA' − PeC'Rn⁻¹CPe + Qn = 0</code><br>
+           Observer gain: <code>L = PeC'Rn⁻¹</code><br>
+           State estimate: <code>x̂̇ = Ax̂ + Bu + L(y − Cx̂)</code></p>
+      </div>
+      <div class="theory-box" style="border-color:#4CAF50;">
+        <h4>Separation Principle (LQG)</h4>
+        <p>LQR + Kalman combined. Design independently:<br>
+           CL eigs = eig(A−BK) ∪ eig(A−LC)<br><br>
+           <b>Q</b>: larger → tighter state tracking (more control effort)<br>
+           <b>R</b>: larger → cheaper control (slower response)<br>
+           <b>Qn/Rn</b>: process/measurement noise — tunes observer aggressiveness</p>
+      </div>
     </div>
   </div>
 </div>
@@ -588,6 +640,160 @@ function renderStability(margins, metrics) {
          <b>Both must be positive</b> for a stable closed-loop system.</p>
     </div>
   `;
+}
+
+// ── LQR / LQG ───────────────────────────────────────────────────────────────
+const lqrState = {
+  plant: 'Mass-Spring-Damper', plantParams: {}, Q: [], R: 1, Qn: 0.1, Rn: 0.1,
+};
+let _lqrActiveTab = 0;
+let _lqrResult = null;
+
+(function initLQR() {
+  const sel = document.getElementById('lqr-plant');
+  Object.keys(CS.SS_PLANTS).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name; sel.appendChild(opt);
+  });
+  lqrUpdatePlant();
+})();
+
+function lqrUpdatePlant() {
+  const name = document.getElementById('lqr-plant').value;
+  lqrState.plant = name;
+  const info = CS.SS_PLANTS[name];
+  document.getElementById('lqr-plant-desc').textContent = info.desc;
+
+  // Plant params
+  const pContainer = document.getElementById('lqr-plant-params');
+  pContainer.innerHTML = '';
+  lqrState.plantParams = {};
+  for (const [key, spec] of Object.entries(info.params)) {
+    lqrState.plantParams[key] = spec.default;
+    pContainer.innerHTML += `
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>${spec.label}</span>
+          <span class="ctrl-val" id="lqrpv-${key}">${spec.default.toFixed(2)}</span></div>
+        <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
+          oninput="lqrState.plantParams['${key}']=parseFloat(this.value);
+                   document.getElementById('lqrpv-${key}').textContent=parseFloat(this.value).toFixed(2);">
+      </div>`;
+  }
+
+  // Q sliders
+  lqrState.Q = [...info.defaultQ];
+  const qContainer = document.getElementById('lqr-q-sliders');
+  qContainer.innerHTML = '';
+  info.states.forEach((sname, i) => {
+    qContainer.innerHTML += `
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span>Q[${i}] ${sname}</span>
+          <span class="ctrl-val" id="lqr-v-Q${i}">${info.defaultQ[i].toFixed(1)}</span></div>
+        <input type="range" min="0.1" max="500" step="0.1" value="${info.defaultQ[i]}"
+          oninput="lqrState.Q[${i}]=parseFloat(this.value);
+                   document.getElementById('lqr-v-Q${i}').textContent=parseFloat(this.value).toFixed(1);">
+      </div>`;
+  });
+  _lqrResult = null;
+}
+
+function lqrTab(n) {
+  document.querySelectorAll('#lqr-page .tab-btn').forEach((b, i) => b.classList.toggle('active', i === n));
+  document.querySelectorAll('#lqr-page .tab-content').forEach((c, i) => c.classList.toggle('active', i === n));
+  _lqrActiveTab = n;
+  lqrRender();
+}
+
+function lqrRun() {
+  const btn = document.getElementById('lqr-run-btn');
+  btn.textContent = '⏳ Computing...'; btn.disabled = true;
+  setTimeout(() => {
+    try {
+      const info = CS.SS_PLANTS[lqrState.plant];
+      const { A, B, Cv } = info.ss(lqrState.plantParams);
+      const n = A.length;
+      const Q = Array.from({ length: n }, (_, i) =>
+        Array.from({ length: n }, (_, j) => i === j ? (lqrState.Q[i] || 1) : 0));
+      const { K, Nbar } = CS.lqrDesign(A, B, Cv, Q, lqrState.R);
+      const ref = 1.0;
+      const tEnd = Math.max(10, n * 5);
+      const lqrSim = CS.simulateLQR(A, B, Cv, K, Nbar, ref, tEnd);
+
+      const L = CS.kalmanDesign(A, B, Cv, lqrState.Qn, lqrState.Rn);
+      const lqgSim = CS.simulateLQG(A, B, Cv, K, Nbar, L, ref, tEnd, lqrState.Qn, lqrState.Rn, 42);
+
+      _lqrResult = { lqrSim, lqgSim, K, Nbar, L, ref, info };
+      lqrRender();
+    } catch (e) {
+      console.error('LQR error:', e);
+      document.getElementById('lqr-metrics').innerHTML =
+        `<div class="metric-card" style="grid-column:span 2;"><div class="metric-label">Error</div>
+         <div class="metric-value" style="font-size:0.8rem;color:#F44336;">${e.message}</div></div>`;
+    }
+    btn.textContent = '▶ Run Simulation'; btn.disabled = false;
+  }, 20);
+}
+
+function lqrRender() {
+  if (!_lqrResult) return;
+  const { lqrSim, lqgSim, K, Nbar, L, ref, info } = _lqrResult;
+
+  if (_lqrActiveTab === 0) {
+    const tRef = lqrSim.t.map(() => ref);
+    Plotly.react('chart-lqr-step', [
+      { x: lqrSim.t, y: tRef,      name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+      { x: lqrSim.t, y: lqrSim.y, name: 'Output y(t)', line: { color: '#4CAF50', width: 2.5 } },
+    ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+         title: { text: 'LQR Step Response', font: { size: 12 } } }, PLT_CFG);
+
+    const m = CS.performanceMetrics(lqrSim.t, lqrSim.y, ref);
+    document.getElementById('lqr-metrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Overshoot</div>
+        <div class="metric-value ${m.os > 20 ? 'orange' : 'green'}">${m.os.toFixed(1)}%</div></div>
+      <div class="metric-card"><div class="metric-label">SS Error</div>
+        <div class="metric-value ${m.ssError > 0.05 ? 'orange' : 'green'}">${m.ssError.toFixed(4)}</div></div>
+      <div class="metric-card"><div class="metric-label">Rise Time</div>
+        <div class="metric-value">${m.riseTime ? m.riseTime.toFixed(2) + 's' : 'N/A'}</div></div>
+      <div class="metric-card"><div class="metric-label">Settle (2%)</div>
+        <div class="metric-value">${m.settleTime ? m.settleTime.toFixed(2) + 's' : 'N/A'}</div></div>`;
+  }
+
+  if (_lqrActiveTab === 1) {
+    Plotly.react('chart-lqr-u', [
+      { x: lqrSim.t, y: lqrSim.u_hist, name: 'Control u(t)', line: { color: '#9C27B0', width: 2 } },
+    ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'u(t)' },
+         title: { text: 'LQR Control Signal', font: { size: 12 } } }, PLT_CFG);
+
+    document.getElementById('lqr-gain-panel').innerHTML = `
+      <div class="panel"><div class="panel-title">LQR Gain K</div>
+        <div style="font-family:monospace;font-size:0.82rem;color:#e0e0e0;">
+          K = [${K.map(v => v.toFixed(3)).join(', ')}]</div>
+        <div style="font-size:0.78rem;color:#8b949e;margin-top:6px;">
+          Nbar = ${Nbar.toFixed(4)} &nbsp;·&nbsp; u = −K·x + Nbar·r</div>
+        <div class="panel-title" style="margin-top:10px;">State names</div>
+        ${info.states.map((s, i) => `<div style="font-size:0.8rem;color:#e0e0e0;">K[${i}] = ${K[i].toFixed(3)} → ${s}</div>`).join('')}
+      </div>`;
+  }
+
+  if (_lqrActiveTab === 2) {
+    const tRef = lqgSim.t.map(() => ref);
+    Plotly.react('chart-lqg-est', [
+      { x: lqgSim.t, y: tRef,          name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
+      { x: lqgSim.t, y: lqgSim.y_true, name: 'True y(t)', line: { color: '#4CAF50', width: 2.5 } },
+      { x: lqgSim.t, y: lqgSim.y_meas, name: 'Measured',  mode: 'markers',
+        marker: { color: '#FF9800', size: 2, opacity: 0.5 } },
+      { x: lqgSim.t, y: lqgSim.y_est,  name: 'Kalman est', line: { color: '#F44336', dash: 'dot', width: 2 } },
+    ], { ...LAYOUT, xaxis: { ...LAYOUT.xaxis, title: 'Time (s)' }, yaxis: { ...LAYOUT.yaxis, title: 'Output' },
+         title: { text: 'LQG: True vs Estimated', font: { size: 12 } } }, PLT_CFG);
+
+    const errArr = lqgSim.y_true.map((v, i) => Math.abs(v - lqgSim.y_est[i]));
+    const rmse = Math.sqrt(errArr.reduce((s, v) => s + v * v, 0) / errArr.length);
+    document.getElementById('lqg-metrics').innerHTML = `
+      <div class="metric-card"><div class="metric-label">Est. RMSE</div>
+        <div class="metric-value ${rmse > 0.1 ? 'orange' : 'green'}">${rmse.toFixed(4)}</div></div>
+      <div class="metric-card"><div class="metric-label">Kalman gain L</div>
+        <div class="metric-value" style="font-size:0.75rem;">[${L.map(v => v.toFixed(2)).join(', ')}]</div></div>`;
+  }
 }
 
 // Init on load
