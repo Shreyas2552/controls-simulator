@@ -139,7 +139,7 @@ jobs:
       - name: Rename APK
         run: |
           APK_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
-          APK_DST="ControlsSimulator-v2.0.apk"
+          APK_DST="ControlsSimulator-v2.1.apk"
           cp "$APK_SRC" "$APK_DST"
           echo "APK size: $(du -sh $APK_DST | cut -f1)"
 
@@ -148,35 +148,36 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ControlsSimulator-APK
-          path: ControlsSimulator-v2.0.apk
+          path: ControlsSimulator-v2.1.apk
           retention-days: 30
 
       # ── Create/update GitHub Release ──────────────────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0-apk
-          name: "Control Systems Simulator v2.0 — Android APK"
+          tag_name: v2.1-apk
+          name: "Control Systems Simulator v2.1 — Android APK (All Simulations)"
           body: |
-            ## Control Systems Simulator v2.0 — Android APK
+            ## Control Systems Simulator v2.1 — Android APK
 
             ### Install
-            1. Download `ControlsSimulator-v2.0.apk`
+            1. Download `ControlsSimulator-v2.1.apk`
             2. On Android: Settings → Security → Unknown sources → ON
             3. Open the downloaded APK and tap Install
 
-            ### What's in this release
-            - ✅ **PID Control Simulator** — 8 plants, step response, Bode, root locus, Nyquist, stability margins
-            - 📚 **LQR/LQG, MPC, Advanced, Control Strategies** — theory reference cards (interactive simulations coming in v2.1)
-            - Fully **offline** — no internet required after install
+            ### What's in this release — all 5 pages fully interactive
+            - ✅ **PID Control** — 8 plants · Step response · Bode · Root Locus · Nyquist · Stability margins
+            - ✅ **LQR / LQG** — Mass-Spring-Damper, DC Motor, Inverted Pendulum · Q/R sliders · Kalman filter estimation
+            - ✅ **MPC** — Finite-horizon optimal control · Np/Nc horizons · Hard u_min/u_max constraints · Process noise
+            - ✅ **Advanced Control** — Smith Predictor vs plain PI · SIMC tuning comparison · System ID · Interview Q&A
+            - ✅ **Control Strategies** — Cascade vs single-loop · Feedforward (perfect & mismatched) · Sliding Mode Control · Relay/bang-bang
+
+            ### All simulations run fully offline
+            - No internet required after install
+            - All algorithms reimplemented in JavaScript (no Python runtime)
             - Works on Android 7.0+ (API 24+)
-
-            ### Requirements
-            - Android 7.0+ (Nougat), API level 24+
             - ~8 MB storage
-
-            > Full interactive simulations available at the Streamlit Cloud web app.
-          files: ControlsSimulator-v2.0.apk
+          files: ControlsSimulator-v2.1.apk
           draft: false
           prerelease: false
         env:
