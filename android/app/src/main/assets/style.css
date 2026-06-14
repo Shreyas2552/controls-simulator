@@ -204,3 +204,40 @@ select {
 
 /* ── Scrollable content ──────────────────────────────────────────── */
 .scroll-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+
+/* ── Landscape / small-height adjustments ────────────────────────── */
+@media (orientation: landscape) and (max-height: 540px) {
+  /* Navigation screen */
+  #nav-screen    { padding: 12px 16px; }
+  .nav-title     { font-size: 1.1rem; margin-bottom: 2px; }
+  .nav-sub       { margin-bottom: 14px; }
+  .nav-grid      { grid-template-columns: repeat(3, 1fr); max-width: 600px; gap: 10px; }
+  .nav-card      { padding: 12px 10px; }
+  .nav-card .icon { font-size: 1.5rem; margin-bottom: 4px; }
+  .nav-card.full { grid-column: span 3; }
+
+  /* Panels */
+  .panel        { padding: 8px 10px; margin-bottom: 8px; }
+  .ctrl-row     { margin-bottom: 6px; }
+  .panel-title  { margin-bottom: 6px; font-size: 0.76rem; }
+
+  /* Tabs */
+  .tab-btn      { padding: 5px 10px; font-size: 0.77rem; }
+  .tab-content  { padding: 8px; }
+
+  /* Run button */
+  .btn-primary  { padding: 8px; font-size: 0.85rem; }
+
+  /* Metrics */
+  .metrics-row  { gap: 6px; }
+  .metric-card  { padding: 6px 8px; }
+  .metric-label { font-size: 0.68rem; }
+  .metric-value { font-size: 0.9rem; }
+
+  /* Theory boxes */
+  .theory-box   { padding: 8px 12px; font-size: 0.79rem; }
+  .theory-box h4 { font-size: 0.84rem; margin-bottom: 4px; }
+
+  /* Input range thumb — bigger touch target in landscape */
+  input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; }
+}

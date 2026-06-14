@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"/>
   <title>Control Systems Simulator</title>
   <link rel="stylesheet" href="style.css"/>
   <script src="lib/plotly.min.js"></script>
@@ -45,7 +45,7 @@
     </div>
   </div>
 
-  <div class="nav-footer">v2.0 · Shreyas2552/controls-simulator</div>
+  <div class="nav-footer">v2.2 · Shreyas2552/controls-simulator</div>
 </div>
 
 
@@ -667,7 +667,7 @@ const LAYOUT = {
   xaxis: { gridcolor: 'rgba(255,255,255,0.07)', linecolor: '#444', zerolinecolor: '#555' },
   yaxis: { gridcolor: 'rgba(255,255,255,0.07)', linecolor: '#444', zerolinecolor: '#555' },
 };
-const PLT_CFG = { displayModeBar: false, responsive: true };
+const PLT_CFG = { displayModeBar: false, responsive: true, scrollZoom: true };
 
 // ── PID State ───────────────────────────────────────────────────────────────
 const pid = {
@@ -1402,8 +1402,63 @@ function strRunRelay() {
   }, 20);
 }
 
-// Init on load
+// ── Pinch zoom: allow only inside Plotly charts, block page-level zoom ───────
+document.body.addEventListener('touchmove', e => {
+  if (e.touches.length > 1 && !e.target.closest('.js-plotly-plot')) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// ── 2-second debounce auto-runner for sliders ────────────────────────────────
+const _autoRunTimers = {};
+function scheduleAutoRun(pageId, fn) {
+  clearTimeout(_autoRunTimers[pageId]);
+  _autoRunTimers[pageId] = setTimeout(fn, 2000);
+}
+
+// One delegated listener catches all slider moves across all pages
+document.addEventListener('input', e => {
+  if (e.target.type !== 'range') return;
+  const page = e.target.closest('.page');
+  if (!page) return;
+  // LQR and MPC are expensive — leave them on manual "Run" button only
+  const runners = {
+    'pid-page': pidRun,
+    'advanced-page': () => {
+      if (_advActiveTab === 0) advRunSmith();
+      else if (_advActiveTab === 1) advRunSIMC();
+      else if (_advActiveTab === 2) advRunSysID();
+    },
+    'strategies-page': () => {
+      if (_strActiveTab === 0) strRunCascade();
+      else if (_strActiveTab === 1) strRunFF();
+      else if (_strActiveTab === 2) strRunSMC();
+      else if (_strActiveTab === 3) strRunRelay();
+    },
+  };
+  if (runners[page.id]) scheduleAutoRun(page.id, runners[page.id]);
+});
+
+// ── Orientation/resize: scale chart heights and trigger Plotly resize ────────
+function applyChartHeights() {
+  const landscape = window.innerWidth > window.innerHeight && window.innerHeight < 560;
+  document.querySelectorAll('[id^="chart-"]').forEach(el => {
+    el.style.height = landscape ? '210px' : (el.dataset.origH || el.style.height);
+    if (typeof Plotly !== 'undefined') Plotly.Plots.resize(el);
+  });
+}
+
+window.addEventListener('resize', () => {
+  clearTimeout(window._rszTimer);
+  window._rszTimer = setTimeout(applyChartHeights, 200);
+});
+
+// ── Init on load ─────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  // Save original heights so landscape → portrait restore works correctly
+  document.querySelectorAll('[id^="chart-"]').forEach(el => {
+    if (el.style.height) el.dataset.origH = el.style.height;
+  });
   pidRun();
 });
 </script>
