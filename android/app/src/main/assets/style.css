@@ -205,6 +205,41 @@ select {
 /* ── Scrollable content ──────────────────────────────────────────── */
 .scroll-content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
 
+/* ── Parameter info collapsibles ─────────────────────────────────── */
+details.param-info { margin-top: 5px; }
+details.param-info > summary {
+  font-size: 0.72rem;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+details.param-info > summary::-webkit-details-marker { display: none; }
+details.param-info > summary::before {
+  content: '▶';
+  font-size: 0.55rem;
+  display: inline-block;
+  transition: transform 0.15s;
+  color: var(--blue);
+}
+details.param-info[open] > summary::before { transform: rotate(90deg); }
+.param-desc {
+  font-size: 0.79rem;
+  color: #b8c2d4;
+  background: rgba(33, 150, 243, 0.07);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 6px 6px 0;
+  padding: 9px 11px;
+  margin-top: 5px;
+  line-height: 1.65;
+}
+.param-desc b { color: #64b5f6; }
+
 /* ── Landscape / small-height adjustments ────────────────────────── */
 @media (orientation: landscape) and (max-height: 540px) {
   /* Navigation screen */

@@ -71,30 +71,30 @@
       <div class="panel-title">PID Gains</div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Proportional Kp</span><span class="ctrl-val" id="v-Kp">1.20</span></div>
-        <input type="range" id="sl-Kp" min="0" max="20" step="0.05" value="1.2" oninput="pidSlide('Kp',this.value)">
+        <input type="range" id="sl-Kp" min="0" max="20" step="0.05" value="1.2" oninput="pidSlide('Kp',this.value)" data-pi="pid-Kp">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Integral Ki</span><span class="ctrl-val" id="v-Ki">0.30</span></div>
-        <input type="range" id="sl-Ki" min="0" max="10" step="0.02" value="0.3" oninput="pidSlide('Ki',this.value)">
+        <input type="range" id="sl-Ki" min="0" max="10" step="0.02" value="0.3" oninput="pidSlide('Ki',this.value)" data-pi="pid-Ki">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Derivative Kd</span><span class="ctrl-val" id="v-Kd">0.10</span></div>
-        <input type="range" id="sl-Kd" min="0" max="10" step="0.02" value="0.1" oninput="pidSlide('Kd',this.value)">
+        <input type="range" id="sl-Kd" min="0" max="10" step="0.02" value="0.1" oninput="pidSlide('Kd',this.value)" data-pi="pid-Kd">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Filter N</span><span class="ctrl-val" id="v-N">100</span></div>
-        <input type="range" id="sl-N" min="1" max="1000" step="1" value="100" oninput="pidSlide('N',this.value)">
+        <input type="range" id="sl-N" min="1" max="1000" step="1" value="100" oninput="pidSlide('N',this.value)" data-pi="pid-N">
       </div>
     </div>
 
     <div class="panel">
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Reference (setpoint)</span><span class="ctrl-val" id="v-ref">1.00</span></div>
-        <input type="range" id="sl-ref" min="-5" max="5" step="0.1" value="1.0" oninput="pidSlide('ref',this.value)">
+        <input type="range" id="sl-ref" min="-5" max="5" step="0.1" value="1.0" oninput="pidSlide('ref',this.value)" data-pi="pid-ref">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Simulation duration (s)</span><span class="ctrl-val" id="v-tEnd">20</span></div>
-        <input type="range" id="sl-tEnd" min="5" max="100" step="1" value="20" oninput="pidSlide('tEnd',this.value)">
+        <input type="range" id="sl-tEnd" min="5" max="100" step="1" value="20" oninput="pidSlide('tEnd',this.value)" data-pi="pid-tEnd">
       </div>
       <button class="btn-primary" onclick="pidRun()">▶ Run Simulation</button>
     </div>
@@ -194,18 +194,21 @@
       <div class="ctrl-row" style="margin-top:8px;">
         <div class="ctrl-label"><span>R (control cost)</span><span class="ctrl-val" id="lqr-v-R">1.00</span></div>
         <input type="range" id="lqr-sl-R" min="0.01" max="50" step="0.01" value="1"
-               oninput="document.getElementById('lqr-v-R').textContent=parseFloat(this.value).toFixed(2);lqrState.R=parseFloat(this.value);">
+               oninput="document.getElementById('lqr-v-R').textContent=parseFloat(this.value).toFixed(2);lqrState.R=parseFloat(this.value);"
+               data-pi="lqr-R">
       </div>
       <div class="panel-title" style="margin-top:10px;">Noise (LQG tab)</div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Process noise σq</span><span class="ctrl-val" id="lqr-v-Qn">0.10</span></div>
         <input type="range" id="lqr-sl-Qn" min="0" max="2" step="0.01" value="0.1"
-               oninput="document.getElementById('lqr-v-Qn').textContent=parseFloat(this.value).toFixed(2);lqrState.Qn=parseFloat(this.value);">
+               oninput="document.getElementById('lqr-v-Qn').textContent=parseFloat(this.value).toFixed(2);lqrState.Qn=parseFloat(this.value);"
+               data-pi="lqr-Qn">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Measurement noise σr</span><span class="ctrl-val" id="lqr-v-Rn">0.10</span></div>
         <input type="range" id="lqr-sl-Rn" min="0.01" max="2" step="0.01" value="0.1"
-               oninput="document.getElementById('lqr-v-Rn').textContent=parseFloat(this.value).toFixed(2);lqrState.Rn=parseFloat(this.value);">
+               oninput="document.getElementById('lqr-v-Rn').textContent=parseFloat(this.value).toFixed(2);lqrState.Rn=parseFloat(this.value);"
+               data-pi="lqr-Rn">
       </div>
       <button class="btn-primary" id="lqr-run-btn" onclick="lqrRun()">▶ Run Simulation</button>
     </div>
@@ -276,43 +279,51 @@
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Prediction Np</span><span class="ctrl-val" id="mpc-v-Np">15</span></div>
         <input type="range" min="5" max="40" step="1" value="15"
-               oninput="mpcState.Np=+this.value;document.getElementById('mpc-v-Np').textContent=this.value;">
+               oninput="mpcState.Np=+this.value;document.getElementById('mpc-v-Np').textContent=this.value;"
+               data-pi="mpc-Np">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Control horizon Nc</span><span class="ctrl-val" id="mpc-v-Nc">3</span></div>
         <input type="range" min="1" max="10" step="1" value="3"
-               oninput="mpcState.Nc=+this.value;document.getElementById('mpc-v-Nc').textContent=this.value;">
+               oninput="mpcState.Nc=+this.value;document.getElementById('mpc-v-Nc').textContent=this.value;"
+               data-pi="mpc-Nc">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Output weight Qy</span><span class="ctrl-val" id="mpc-v-Qy">10</span></div>
         <input type="range" min="0.1" max="200" step="0.1" value="10"
-               oninput="mpcState.Qy=+this.value;document.getElementById('mpc-v-Qy').textContent=(+this.value).toFixed(1);">
+               oninput="mpcState.Qy=+this.value;document.getElementById('mpc-v-Qy').textContent=(+this.value).toFixed(1);"
+               data-pi="mpc-Qy">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Control weight Ru</span><span class="ctrl-val" id="mpc-v-Ru">1</span></div>
         <input type="range" min="0.01" max="50" step="0.01" value="1"
-               oninput="mpcState.Ru=+this.value;document.getElementById('mpc-v-Ru').textContent=(+this.value).toFixed(2);">
+               oninput="mpcState.Ru=+this.value;document.getElementById('mpc-v-Ru').textContent=(+this.value).toFixed(2);"
+               data-pi="mpc-Ru">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Sampling dt (s)</span><span class="ctrl-val" id="mpc-v-dt">0.05</span></div>
         <input type="range" min="0.01" max="0.2" step="0.005" value="0.05"
-               oninput="mpcState.dt=+this.value;document.getElementById('mpc-v-dt').textContent=(+this.value).toFixed(3);">
+               oninput="mpcState.dt=+this.value;document.getElementById('mpc-v-dt').textContent=(+this.value).toFixed(3);"
+               data-pi="mpc-dt">
       </div>
       <div class="panel-title" style="margin-top:10px;">Constraints &amp; Noise</div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>u_min</span><span class="ctrl-val" id="mpc-v-umin">-10</span></div>
         <input type="range" min="-50" max="0" step="0.5" value="-10"
-               oninput="mpcState.uMin=+this.value;document.getElementById('mpc-v-umin').textContent=(+this.value).toFixed(1);">
+               oninput="mpcState.uMin=+this.value;document.getElementById('mpc-v-umin').textContent=(+this.value).toFixed(1);"
+               data-pi="mpc-umin">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>u_max</span><span class="ctrl-val" id="mpc-v-umax">10</span></div>
         <input type="range" min="0" max="50" step="0.5" value="10"
-               oninput="mpcState.uMax=+this.value;document.getElementById('mpc-v-umax').textContent=(+this.value).toFixed(1);">
+               oninput="mpcState.uMax=+this.value;document.getElementById('mpc-v-umax').textContent=(+this.value).toFixed(1);"
+               data-pi="mpc-umax">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Process noise σ</span><span class="ctrl-val" id="mpc-v-noise">0</span></div>
         <input type="range" min="0" max="1" step="0.01" value="0"
-               oninput="mpcState.noise=+this.value;document.getElementById('mpc-v-noise').textContent=(+this.value).toFixed(2);">
+               oninput="mpcState.noise=+this.value;document.getElementById('mpc-v-noise').textContent=(+this.value).toFixed(2);"
+               data-pi="mpc-noise">
       </div>
       <button class="btn-primary" id="mpc-run-btn" onclick="mpcRun()">▶ Run Simulation</button>
     </div>
@@ -374,27 +385,32 @@
       <div class="ctrl-row">
         <div class="ctrl-label"><span>DC Gain K</span><span class="ctrl-val" id="adv-v-K">1.00</span></div>
         <input type="range" min="0.1" max="5" step="0.05" value="1"
-               oninput="advState.K=+this.value;document.getElementById('adv-v-K').textContent=(+this.value).toFixed(2);">
+               oninput="advState.K=+this.value;document.getElementById('adv-v-K').textContent=(+this.value).toFixed(2);"
+               data-pi="adv-K">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Time constant τ (s)</span><span class="ctrl-val" id="adv-v-tau">3.00</span></div>
         <input type="range" min="0.5" max="20" step="0.1" value="3"
-               oninput="advState.tau=+this.value;document.getElementById('adv-v-tau').textContent=(+this.value).toFixed(2);">
+               oninput="advState.tau=+this.value;document.getElementById('adv-v-tau').textContent=(+this.value).toFixed(2);"
+               data-pi="adv-tau">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Dead-time L (s)</span><span class="ctrl-val" id="adv-v-L">1.00</span></div>
         <input type="range" min="0" max="10" step="0.1" value="1"
-               oninput="advState.L=+this.value;document.getElementById('adv-v-L').textContent=(+this.value).toFixed(2);">
+               oninput="advState.L=+this.value;document.getElementById('adv-v-L').textContent=(+this.value).toFixed(2);"
+               data-pi="adv-L">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>SIMC λ (desired CL τ)</span><span class="ctrl-val" id="adv-v-lam">1.00</span></div>
         <input type="range" min="0.1" max="20" step="0.1" value="1"
-               oninput="advState.lam=+this.value;document.getElementById('adv-v-lam').textContent=(+this.value).toFixed(2);">
+               oninput="advState.lam=+this.value;document.getElementById('adv-v-lam').textContent=(+this.value).toFixed(2);"
+               data-pi="adv-lam">
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label"><span>Noise σ (System ID)</span><span class="ctrl-val" id="adv-v-noise">0.05</span></div>
         <input type="range" min="0" max="0.5" step="0.005" value="0.05"
-               oninput="advState.noise=+this.value;document.getElementById('adv-v-noise').textContent=(+this.value).toFixed(3);">
+               oninput="advState.noise=+this.value;document.getElementById('adv-v-noise').textContent=(+this.value).toFixed(3);"
+               data-pi="adv-noise">
       </div>
     </div>
   </div>
@@ -501,32 +517,38 @@
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Inner K1</span><span class="ctrl-val" id="sv-K1">2</span></div>
           <input type="range" min="0.1" max="10" step="0.1" value="2"
-            oninput="strState.K1=+this.value;document.getElementById('sv-K1').textContent=(+this.value).toFixed(1);">
+            oninput="strState.K1=+this.value;document.getElementById('sv-K1').textContent=(+this.value).toFixed(1);"
+            data-pi="str-K1">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Inner τ1 (s)</span><span class="ctrl-val" id="sv-tau1">1</span></div>
           <input type="range" min="0.1" max="10" step="0.1" value="1"
-            oninput="strState.tau1=+this.value;document.getElementById('sv-tau1').textContent=(+this.value).toFixed(1);">
+            oninput="strState.tau1=+this.value;document.getElementById('sv-tau1').textContent=(+this.value).toFixed(1);"
+            data-pi="str-tau1">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Outer K2</span><span class="ctrl-val" id="sv-K2">1.5</span></div>
           <input type="range" min="0.1" max="10" step="0.1" value="1.5"
-            oninput="strState.K2=+this.value;document.getElementById('sv-K2').textContent=(+this.value).toFixed(1);">
+            oninput="strState.K2=+this.value;document.getElementById('sv-K2').textContent=(+this.value).toFixed(1);"
+            data-pi="str-K2">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Outer τ2 (s)</span><span class="ctrl-val" id="sv-tau2">3</span></div>
           <input type="range" min="0.1" max="20" step="0.1" value="3"
-            oninput="strState.tau2=+this.value;document.getElementById('sv-tau2').textContent=(+this.value).toFixed(1);">
+            oninput="strState.tau2=+this.value;document.getElementById('sv-tau2').textContent=(+this.value).toFixed(1);"
+            data-pi="str-tau2">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Disturbance amp</span><span class="ctrl-val" id="sv-dist">0.5</span></div>
           <input type="range" min="0" max="2" step="0.05" value="0.5"
-            oninput="strState.dist=+this.value;document.getElementById('sv-dist').textContent=(+this.value).toFixed(2);">
+            oninput="strState.dist=+this.value;document.getElementById('sv-dist').textContent=(+this.value).toFixed(2);"
+            data-pi="str-dist">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Disturbance time (s)</span><span class="ctrl-val" id="sv-dtim">10</span></div>
           <input type="range" min="1" max="30" step="1" value="10"
-            oninput="strState.distTime=+this.value;document.getElementById('sv-dtim').textContent=this.value;">
+            oninput="strState.distTime=+this.value;document.getElementById('sv-dtim').textContent=this.value;"
+            data-pi="str-distTime">
         </div>
         <button class="btn-primary" id="str-cascade-btn" onclick="strRunCascade()">▶ Run Cascade vs Single-Loop</button>
       </div>
@@ -544,27 +566,32 @@
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Plant K_G</span><span class="ctrl-val" id="sv-KG">1</span></div>
           <input type="range" min="0.1" max="5" step="0.1" value="1"
-            oninput="strState.K_G=+this.value;document.getElementById('sv-KG').textContent=(+this.value).toFixed(1);">
+            oninput="strState.K_G=+this.value;document.getElementById('sv-KG').textContent=(+this.value).toFixed(1);"
+            data-pi="str-KG">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Plant τ_G (s)</span><span class="ctrl-val" id="sv-tauG">2</span></div>
           <input type="range" min="0.1" max="15" step="0.1" value="2"
-            oninput="strState.tau_G=+this.value;document.getElementById('sv-tauG').textContent=(+this.value).toFixed(1);">
+            oninput="strState.tau_G=+this.value;document.getElementById('sv-tauG').textContent=(+this.value).toFixed(1);"
+            data-pi="str-tauG">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Disturbance K_Gd</span><span class="ctrl-val" id="sv-KGd">0.8</span></div>
           <input type="range" min="0.1" max="5" step="0.1" value="0.8"
-            oninput="strState.K_Gd=+this.value;document.getElementById('sv-KGd').textContent=(+this.value).toFixed(1);">
+            oninput="strState.K_Gd=+this.value;document.getElementById('sv-KGd').textContent=(+this.value).toFixed(1);"
+            data-pi="str-KGd">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Disturbance τ_Gd (s)</span><span class="ctrl-val" id="sv-tauGd">1</span></div>
           <input type="range" min="0.1" max="15" step="0.1" value="1"
-            oninput="strState.tau_Gd=+this.value;document.getElementById('sv-tauGd').textContent=(+this.value).toFixed(1);">
+            oninput="strState.tau_Gd=+this.value;document.getElementById('sv-tauGd').textContent=(+this.value).toFixed(1);"
+            data-pi="str-tauGd">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Disturbance amp</span><span class="ctrl-val" id="sv-ff-dist">1</span></div>
           <input type="range" min="0.1" max="5" step="0.1" value="1"
-            oninput="strState.ff_dist=+this.value;document.getElementById('sv-ff-dist').textContent=(+this.value).toFixed(1);">
+            oninput="strState.ff_dist=+this.value;document.getElementById('sv-ff-dist').textContent=(+this.value).toFixed(1);"
+            data-pi="str-ff-dist">
         </div>
         <button class="btn-primary" id="str-ff-btn" onclick="strRunFF()">▶ Run Feedforward</button>
       </div>
@@ -582,33 +609,39 @@
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Mass m (kg)</span><span class="ctrl-val" id="sv-m">1</span></div>
           <input type="range" min="0.1" max="5" step="0.1" value="1"
-            oninput="strState.m=+this.value;document.getElementById('sv-m').textContent=(+this.value).toFixed(1);">
+            oninput="strState.m=+this.value;document.getElementById('sv-m').textContent=(+this.value).toFixed(1);"
+            data-pi="str-m">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Spring k (N/m)</span><span class="ctrl-val" id="sv-k">2</span></div>
           <input type="range" min="0.1" max="20" step="0.1" value="2"
-            oninput="strState.k=+this.value;document.getElementById('sv-k').textContent=(+this.value).toFixed(1);">
+            oninput="strState.k=+this.value;document.getElementById('sv-k').textContent=(+this.value).toFixed(1);"
+            data-pi="str-k">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Damper b</span><span class="ctrl-val" id="sv-b">0.5</span></div>
           <input type="range" min="0" max="5" step="0.1" value="0.5"
-            oninput="strState.b=+this.value;document.getElementById('sv-b').textContent=(+this.value).toFixed(1);">
+            oninput="strState.b=+this.value;document.getElementById('sv-b').textContent=(+this.value).toFixed(1);"
+            data-pi="str-b">
         </div>
         <div class="panel-title" style="margin-top:8px;">SMC Parameters</div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Slope c</span><span class="ctrl-val" id="sv-c">2</span></div>
           <input type="range" min="0.1" max="10" step="0.1" value="2"
-            oninput="strState.c_smc=+this.value;document.getElementById('sv-c').textContent=(+this.value).toFixed(1);">
+            oninput="strState.c_smc=+this.value;document.getElementById('sv-c').textContent=(+this.value).toFixed(1);"
+            data-pi="str-c">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Gain K_smc</span><span class="ctrl-val" id="sv-Ksmc">5</span></div>
           <input type="range" min="0.1" max="20" step="0.1" value="5"
-            oninput="strState.K_smc=+this.value;document.getElementById('sv-Ksmc').textContent=(+this.value).toFixed(1);">
+            oninput="strState.K_smc=+this.value;document.getElementById('sv-Ksmc').textContent=(+this.value).toFixed(1);"
+            data-pi="str-Ksmc">
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label"><span>Boundary layer φ</span><span class="ctrl-val" id="sv-phi">0.1</span></div>
           <input type="range" min="0.01" max="1" step="0.01" value="0.1"
-            oninput="strState.phi=+this.value;document.getElementById('sv-phi').textContent=(+this.value).toFixed(2);">
+            oninput="strState.phi=+this.value;document.getElementById('sv-phi').textContent=(+this.value).toFixed(2);"
+            data-pi="str-phi">
         </div>
         <button class="btn-primary" id="str-smc-btn" onclick="strRunSMC()">▶ Run SMC</button>
       </div>
@@ -628,7 +661,8 @@
         <div class="ctrl-row">
           <div class="ctrl-label"><span>u_max</span><span class="ctrl-val" id="sv-umax-relay">10</span></div>
           <input type="range" min="1" max="50" step="0.5" value="10"
-            oninput="strState.u_max_relay=+this.value;document.getElementById('sv-umax-relay').textContent=(+this.value).toFixed(1);">
+            oninput="strState.u_max_relay=+this.value;document.getElementById('sv-umax-relay').textContent=(+this.value).toFixed(1);"
+            data-pi="str-umax-relay">
         </div>
         <button class="btn-primary" id="str-relay-btn" onclick="strRunRelay()">▶ Run Relay Control</button>
       </div>
@@ -708,9 +742,10 @@ function pidUpdatePlantParams() {
       <div class="ctrl-row">
         <div class="ctrl-label"><span>${spec.label}</span><span class="ctrl-val" id="pv-${key}">${spec.default.toFixed(2)}</span></div>
         <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
-          oninput="pidPlantParam('${key}', this.value)">
+          oninput="pidPlantParam('${key}', this.value)" data-pi="plant-${key}">
       </div>`;
   }
+  container.querySelectorAll('input[data-pi]').forEach(_injectParamInfo);
 }
 
 function pidPlantParam(key, val) {
@@ -964,9 +999,11 @@ function lqrUpdatePlant() {
           <span class="ctrl-val" id="lqrpv-${key}">${spec.default.toFixed(2)}</span></div>
         <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
           oninput="lqrState.plantParams['${key}']=parseFloat(this.value);
-                   document.getElementById('lqrpv-${key}').textContent=parseFloat(this.value).toFixed(2);">
+                   document.getElementById('lqrpv-${key}').textContent=parseFloat(this.value).toFixed(2);"
+          data-pi="plant-${key}">
       </div>`;
   }
+  pContainer.querySelectorAll('input[data-pi]').forEach(_injectParamInfo);
 
   // Q sliders
   lqrState.Q = [...info.defaultQ];
@@ -979,9 +1016,11 @@ function lqrUpdatePlant() {
           <span class="ctrl-val" id="lqr-v-Q${i}">${info.defaultQ[i].toFixed(1)}</span></div>
         <input type="range" min="0.1" max="500" step="0.1" value="${info.defaultQ[i]}"
           oninput="lqrState.Q[${i}]=parseFloat(this.value);
-                   document.getElementById('lqr-v-Q${i}').textContent=parseFloat(this.value).toFixed(1);">
+                   document.getElementById('lqr-v-Q${i}').textContent=parseFloat(this.value).toFixed(1);"
+          data-pi="lqr-Q">
       </div>`;
   });
+  qContainer.querySelectorAll('input[data-pi]').forEach(_injectParamInfo);
   _lqrResult = null;
 }
 
@@ -1116,9 +1155,11 @@ function mpcUpdatePlant() {
           <span class="ctrl-val" id="mpcpv-${key}">${spec.default.toFixed(2)}</span></div>
         <input type="range" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.default}"
           oninput="mpcState.plantParams['${key}']=parseFloat(this.value);
-                   document.getElementById('mpcpv-${key}').textContent=parseFloat(this.value).toFixed(2);">
+                   document.getElementById('mpcpv-${key}').textContent=parseFloat(this.value).toFixed(2);"
+          data-pi="plant-${key}">
       </div>`;
   }
+  pContainer.querySelectorAll('input[data-pi]').forEach(_injectParamInfo);
   _mpcResult = null;
 }
 
@@ -1402,6 +1443,79 @@ function strRunRelay() {
   }, 20);
 }
 
+// ── Parameter info descriptions ──────────────────────────────────────────────
+const PARAM_INFO = {
+  // PID
+  'pid-Kp':   { t: 'Kp — Proportional gain',   d: '<b>Scales current error directly:</b> u_P = Kp × e(t).<br><b>↑ Higher:</b> Faster rise, shorter response time — but too high causes overshoot, oscillations, and instability.<br><b>↓ Lower:</b> Sluggish response. Without integral action, a steady-state offset will remain.' },
+  'pid-Ki':   { t: 'Ki — Integral gain',        d: '<b>Accumulates past errors:</b> u_I = Ki × ∫e dt. This is what eliminates steady-state offset entirely.<br><b>↑ Higher:</b> Faster offset removal — too high causes integral windup, large overshoot and slow recovery.<br><b>↓ Lower:</b> Slow correction. Very low = residual offset stays.' },
+  'pid-Kd':   { t: 'Kd — Derivative gain',      d: '<b>Reacts to error rate of change:</b> u_D = Kd × de/dt. Acts like a predictive brake — anticipates where the error is heading.<br><b>↑ Higher:</b> Less overshoot, more damping. Too high → noise amplification, chattering.<br><b>↓ Lower:</b> More overshoot, slower settling. Set to 0 on noisy sensors.' },
+  'pid-N':    { t: 'N — Derivative filter',      d: '<b>Limits D-term bandwidth.</b> Practical D term = Kd·N·s / (s+N). Without it, derivative gain → ∞ at high frequencies.<br><b>↑ Higher N (100–1000):</b> Near-ideal derivative — responsive but amplifies sensor noise.<br><b>↓ Lower N (5–20):</b> Heavy filtering — smooth output but sluggish derivative action.<br>Typical: N = 50–200.' },
+  'pid-ref':  { t: 'Reference — Setpoint',       d: '<b>The target output the controller aims for.</b> Error e(t) = Reference − y(t). The controller drives this to zero.<br>Change it to test tracking (servo mode). Keep fixed to test disturbance rejection (regulatory mode).' },
+  'pid-tEnd': { t: 'Simulation duration',         d: '<b>How long to simulate.</b> Set ≥ 4–5 time constants (τ) to see the full transient and steady-state behaviour.<br>Example: first-order plant with τ = 5 s → run at least 25 s. Slow or unstable plants may need longer.' },
+  // LQR / LQG
+  'lqr-R':    { t: 'R — Control effort penalty', d: '<b>Weights control effort in LQR cost:</b> J = ∫(x\'Qx + R·u²) dt.<br><b>↑ Higher R:</b> Smaller, gentler control inputs — conservative, less actuator wear, but slower response.<br><b>↓ Lower R:</b> Aggressive large inputs — fast response but risk of actuator saturation.<br>Rule: Start R = 1, then adjust Q/R ratio to balance speed vs. effort.' },
+  'lqr-Qn':   { t: 'σq — Process noise (LQG)',   d: '<b>Standard deviation of noise injected into states</b> each step (LQG simulation only). Sets Qn = σq² in the Kalman filter.<br><b>↑ Higher σq:</b> More model uncertainty → Kalman trusts measurements more, tracks faster.<br><b>↓ Lower σq:</b> Predictable plant → Kalman relies more on the model between measurements.' },
+  'lqr-Rn':   { t: 'σr — Sensor noise (LQG)',    d: '<b>Standard deviation of measurement noise</b> added to sensor output (LQG only). Sets Rn = σr² in the Kalman filter.<br><b>↑ Higher σr:</b> Noisier sensor → Kalman smooths more (less jitter, but estimate lags behind truth).<br><b>↓ Lower σr:</b> Clean sensor → Kalman follows measurements closely.' },
+  'lqr-Q':    { t: 'Q[i] — State cost weight',   d: '<b>Penalises this state\'s deviation in the LQR cost:</b> J = ∫(x\'Qx + R·u²) dt.<br><b>↑ Higher Q[i]:</b> Controller works harder to keep this state near the reference — more control effort on it.<br><b>↓ Lower Q[i]:</b> Allows this state to deviate more — less effort spent here.<br>Trade-off: you cannot make every state fast AND minimise control effort simultaneously.' },
+  // MPC
+  'mpc-Np':   { t: 'Np — Prediction horizon',    d: '<b>Steps ahead MPC predicts.</b> Look-ahead window = Np × dt seconds.<br><b>↑ Larger Np:</b> Better anticipation of future references and constraints. More computation per step.<br><b>↓ Smaller Np:</b> Shortsighted — may overshoot or hit constraints unexpectedly.<br>Rule: Np × dt should cover at least one plant time constant.' },
+  'mpc-Nc':   { t: 'Nc — Control horizon',       d: '<b>Number of free control moves optimised.</b> After Nc steps, input is held constant. Must be ≤ Np.<br><b>↑ Larger Nc:</b> More flexibility in the control trajectory — closer to full optimal, more computation.<br><b>↓ Smaller Nc (1–3):</b> Simpler and faster. Often sufficient in practice.<br>Rule of thumb: Nc ≈ Np / 3 to Np / 5.' },
+  'mpc-Qy':   { t: 'Qy — Output tracking weight', d: '<b>Penalises output tracking error:</b> ∑ Qy·(y − ref)² in the MPC cost.<br><b>↑ Higher Qy:</b> Tighter tracking — controller pushes aggressively toward the setpoint.<br><b>↓ Lower Qy:</b> Looser tracking — smoother response, but may have steady-state error.<br>The Qy/Ru ratio controls how aggressive the controller is.' },
+  'mpc-Ru':   { t: 'Ru — Control effort weight',  d: '<b>Penalises control move changes:</b> ∑ Ru·(Δu)² in the MPC cost.<br><b>↑ Higher Ru:</b> Smaller, smoother control steps — protects actuators, slower response.<br><b>↓ Lower Ru:</b> Large fast moves — aggressive tracking, hits constraints more often.<br>Increase Ru if the control signal is too jerky.' },
+  'mpc-dt':   { t: 'dt — Sampling time step',     d: '<b>Discretisation period.</b> Plant state-space model is discretised via zero-order hold (ZOH) at this rate.<br><b>↓ Smaller dt:</b> More accurate discrete model, finer time resolution, more computation steps.<br><b>↑ Larger dt:</b> Fewer steps, faster solve — but too large causes instability or poor performance.<br>Rule: dt ≤ (fastest time constant) / 10.' },
+  'mpc-umin': { t: 'u_min — Lower input bound',   d: '<b>Hard lower constraint on control input.</b> MPC enforces u ≥ u_min at every step.<br>Models physical limits: valve minimum opening, motor cannot reverse, heater cannot cool.<br>When the constraint is active (binding), the controller cannot track perfectly — check the control signal tab for constraint markers.' },
+  'mpc-umax': { t: 'u_max — Upper input bound',   d: '<b>Hard upper constraint on control input.</b> MPC enforces u ≤ u_max at every step.<br>Models actuator saturation: max valve, max motor torque, max heater power.<br>Tighter u_max → more saturation → possible overshoot or steady-state offset if input budget is insufficient.' },
+  'mpc-noise':{ t: 'σ — Process noise',            d: '<b>Gaussian noise added to plant states</b> each simulation step.<br>Tests MPC robustness to model uncertainty and real-world disturbances.<br>0 = clean ideal simulation. Increase to see how well MPC handles a noisy plant.' },
+  // Advanced (FOPDT)
+  'adv-K':    { t: 'K — DC Gain',                 d: '<b>Steady-state amplification:</b> K = Δy_ss / Δu. If input steps by 1, output settles at K.<br><b>↑ Higher K:</b> More sensitive process — use smaller PI gains to stay stable.<br><b>↓ Lower K:</b> Less sensitive — may need higher gains for adequate speed.<br>SIMC: Kp = τ / (K·(λ+L)) — higher K automatically gives smaller Kp.' },
+  'adv-tau':  { t: 'τ — Process time constant',   d: '<b>Characterises process speed.</b> Output reaches 63.2 % of its final value at t = τ. Full settling ≈ 4τ.<br><b>↑ Larger τ:</b> Slow process (thermal, hydraulic). More patience needed; SIMC gives higher Kp.<br><b>↓ Smaller τ:</b> Fast process — higher achievable closed-loop bandwidth.' },
+  'adv-L':    { t: 'L — Dead-time',               d: '<b>Pure delay before the process responds</b> to any input change. Common in: pipelines, pH, distillation, furnaces.<br><b>↑ Larger L:</b> Much harder to control. Maximum achievable bandwidth ≈ 1/L rad/s. The <b>Smith Predictor</b> compensates by removing the delay from the feedback loop.<br>Rule: plain PI becomes difficult when L/τ > 0.5.' },
+  'adv-lam':  { t: 'λ — Desired closed-loop τ',   d: '<b>SIMC tuning knob.</b> Sets the target closed-loop time constant — the SIMC formula gives PID gains so the closed-loop ≈ first-order with time constant λ.<br><b>↑ Larger λ:</b> Slower, more robust, less sensitive to model error. Use for noisy or uncertain processes.<br><b>↓ Smaller λ → L:</b> Faster, more aggressive. λ = L is the practical minimum.<br>Rule of thumb: λ = max(L, τ/2) for balanced response.' },
+  'adv-noise':{ t: 'σ — Noise (System ID tab)',   d: '<b>Measurement noise added to open-loop step response data</b> in the System Identification tab.<br>The ID algorithm estimates K, τ, L from this noisy data.<br><b>↑ Higher σ:</b> Harder to identify — estimated parameters deviate more from true values.<br>Use to test how robust the identification method is to real sensor noise.' },
+  // Control Strategies — Cascade
+  'str-K1':      { t: 'K1 — Inner plant gain',       d: '<b>DC gain of the inner (fast) loop process:</b> G₁(s) = K₁ / (τ₁s+1). Typically the actuator or fast sub-process (e.g. flow, valve).<br>SIMC auto-tunes the inner PI controller using K₁ and τ₁. A faster inner loop improves disturbance rejection for the outer loop.' },
+  'str-tau1':    { t: 'τ1 — Inner plant time const', d: '<b>Time constant of the inner (fast) loop.</b> For cascade to work well, the inner loop must be significantly faster than the outer loop (τ₁ << τ₂).<br><b>↓ Smaller τ₁:</b> Faster inner loop — better cascade advantage.' },
+  'str-K2':      { t: 'K2 — Outer plant gain',       d: '<b>DC gain of the outer (slow) loop process:</b> G₂(s) = K₂ / (τ₂s+1). Typically the main variable of interest (e.g. temperature, level).<br>SIMC auto-tunes the outer PI using the combined dynamics of both plants.' },
+  'str-tau2':    { t: 'τ2 — Outer plant time const', d: '<b>Time constant of the outer (slow) loop.</b> Should be much larger than τ₁ for cascade to be beneficial.<br>The outer loop PI is tuned conservatively relative to the inner loop bandwidth.' },
+  'str-dist':    { t: 'Disturbance amplitude',        d: '<b>Size of the load disturbance</b> injected between the inner and outer plant at the set time.<br>This is where cascade control shines — it rejects mid-loop disturbances far faster than a single-loop controller because the inner loop catches them first.' },
+  'str-distTime':{ t: 'Disturbance injection time',  d: '<b>When the load disturbance is applied.</b> Set this after the system has settled (roughly > 3τ₂) so you can see the disturbance rejection response clearly, separated from the initial step response.' },
+  // Control Strategies — Feedforward
+  'str-KG':    { t: 'K_G — Control path gain',        d: '<b>Steady-state gain of the main plant G(s)</b> = K_G / (τ_G·s+1). The feedforward controller is designed as FF = −G_d / G.<br>Feedforward perfectly cancels the disturbance when the model is exact. Mismatch between actual and modelled K_G degrades performance.' },
+  'str-tauG':  { t: 'τ_G — Control path time const',  d: '<b>Time constant of the main control plant.</b> The ratio τ_Gd / τ_G determines the shape of the feedforward filter.<br>If τ_Gd = τ_G, feedforward = −K_Gd/K_G (pure gain). If τ_Gd ≠ τ_G, feedforward adds dynamic lead or lag.' },
+  'str-KGd':   { t: 'K_Gd — Disturbance path gain',   d: '<b>Steady-state gain of the disturbance path G_d(s)</b> = K_Gd / (τ_Gd·s+1). Feedforward control pre-computes the action needed to cancel this disturbance.<br><b>↑ Higher K_Gd:</b> Larger disturbance effect — feedforward must supply a bigger corrective signal.' },
+  'str-tauGd': { t: 'τ_Gd — Disturbance path time const', d: '<b>Time constant of the disturbance channel.</b> If the disturbance reaches the output faster than the control path (τ_Gd < τ_G), feedforward must lead the control action — i.e. act before the error is seen by the feedback controller.' },
+  'str-ff-dist':{ t: 'Disturbance amplitude',          d: '<b>Size of the step disturbance applied.</b> With perfect feedforward, the output barely moves. With feedback only, it takes several time constants to recover.<br>Try increasing this to see how feedforward maintains control even under large disturbances.' },
+  // Control Strategies — SMC & Relay (MSD plant)
+  'str-m':    { t: 'm — Mass (kg)',               d: '<b>Inertia of the mechanical system.</b> Appears as m·ẍ in the equation of motion: m·ẍ + b·ẋ + k·x = u.<br><b>↑ Larger m:</b> Harder to accelerate — needs more force, slower natural response. SMC switching gain must overcome m·|disturbance|.' },
+  'str-k':    { t: 'k — Spring stiffness (N/m)',  d: '<b>Restoring force = k·x.</b> Sets natural frequency ωₙ = √(k/m).<br><b>↑ Stiffer spring:</b> Higher natural frequency, stronger restoring force — system oscillates faster naturally. SMC equivalent control includes a k·x term to cancel this.' },
+  'str-b':    { t: 'b — Damper (N·s/m)',          d: '<b>Velocity-proportional friction force = b·ẋ.</b> Natural dissipation in the system.<br><b>↑ Higher b:</b> More natural damping — less oscillation, system settles faster on its own. SMC has an easier job.<br><b>↓ Lower b:</b> More oscillatory — SMC must supply virtual damping through the switching term.' },
+  'str-c':    { t: 'c — Sliding surface slope',   d: '<b>Defines the sliding manifold:</b> s = ẋ + c·(x − ref). Once on the surface, error dynamics: ẋ_e + c·x_e = 0 → exponential decay with rate c.<br><b>↑ Larger c:</b> Faster convergence on the surface and faster error decay — but more aggressive control.<br>Good starting point: c ≈ ωₙ = √(k/m).' },
+  'str-Ksmc': { t: 'K_smc — Switching gain',     d: '<b>Magnitude of the discontinuous control term:</b> u_switch = −K_smc·m·sat(s/φ). Must be large enough to overcome all bounded disturbances and uncertainties.<br><b>↑ Higher K_smc:</b> More robust to model error and external disturbances — but more aggressive near the boundary layer.<br><b>↓ Lower K_smc:</b> May not reach the sliding surface if disturbances exceed the switching budget.' },
+  'str-phi':  { t: 'φ — Boundary layer',         d: '<b>Smooths the sign function to sat(s/φ)</b> to eliminate chattering (the rapid switching that harms real actuators).<br><b>↑ Larger φ:</b> Smoother control, less actuator wear — but introduces a steady-state tracking error ≈ φ/c.<br><b>↓ Smaller φ:</b> Near-ideal SMC performance with very fast switching. φ → 0 = true discontinuous SMC.<br>Rule: φ ≈ 5–10 % of expected tracking error.' },
+  'str-umax-relay': { t: 'u_max — Relay amplitude', d: '<b>Switching amplitude for bang-bang control.</b> u = +u_max if error ≥ 0, else u = −u_max.<br><b>↑ Higher u_max:</b> Faster convergence but larger limit-cycle amplitude and faster switching frequency.<br><b>↓ Lower u_max:</b> Smaller oscillations around the setpoint, but slower response.<br>Relay control always causes a steady-state limit cycle — it never truly settles.' },
+  // Plant params (dynamic — same key for PID / LQR / MPC plant selectors)
+  'plant-K':    { t: 'K — DC Gain',              d: '<b>Steady-state amplification:</b> K = Δy_ss / Δu. When input changes by 1, output settles at K.<br><b>↑ Higher K:</b> More sensitive plant — use smaller controller gains.<br><b>↓ Lower K:</b> Less sensitive — may need higher gains for sufficient speed.' },
+  'plant-tau':  { t: 'τ — Time constant',        d: '<b>Process speed.</b> Output reaches 63.2 % of its final value after τ seconds. Full settling ≈ 4τ.<br><b>↑ Larger τ:</b> Slow process (thermal, hydraulic).<br><b>↓ Smaller τ:</b> Fast process — higher achievable bandwidth.' },
+  'plant-wn':   { t: 'ωₙ — Natural frequency',  d: '<b>Undamped oscillation rate (rad/s).</b> ωₙ = √(k/m) for a mass-spring system. Sets the speed of the natural dynamics.<br><b>↑ Higher ωₙ:</b> Faster natural response, but resonance peaks become harder to suppress.<br><b>↓ Lower ωₙ:</b> Slower, easier to control.' },
+  'plant-zeta': { t: 'ζ — Damping ratio',        d: '<b>Controls oscillatory behaviour.</b> ζ < 1: underdamped (oscillates). ζ = 1: critically damped (fastest non-oscillatory). ζ > 1: overdamped.<br><b>↑ Higher ζ:</b> Less oscillation, sluggish step response.<br><b>↓ Lower ζ:</b> More oscillation, sharp initial rise but longer settling.' },
+  'plant-L':    { t: 'L — Dead-time',            d: '<b>Pure delay.</b> Output does not respond for L seconds after any input change. Common in: pipelines, pH control, distillation columns.<br><b>↑ Larger L:</b> Significantly harder to control. Maximum achievable bandwidth ≈ 1/L rad/s.<br><b>↓ Smaller L:</b> Less delay penalty — standard PID works better.' },
+  'plant-tau1': { t: 'τ₁ — First time constant', d: '<b>First pole in a multi-pole plant.</b> Each pole adds up to 90° of phase lag.<br><b>↑ Larger τ₁:</b> Dominant slow dynamics. If τ₁ >> τ₂, the system approximates a first-order plant with τ ≈ τ₁.' },
+  'plant-tau2': { t: 'τ₂ — Second time constant', d: '<b>Second pole.</b> Adds more phase lag on top of τ₁.<br>When τ₂ ≈ τ₁, the combined lag is significant — watch the Bode phase plot to see how close you are to the −180° line.' },
+  'plant-tau3': { t: 'τ₃ — Third time constant', d: '<b>Third pole.</b> Three poles together can produce up to 270° of phase lag, making stability very sensitive to controller gain.<br>High-order plants are inherently harder to stabilise — avoid high Kp and rely on small phase margin buffer.' },
+  'plant-m':    { t: 'm — Mass (kg)',             d: '<b>Inertia of the mechanical system:</b> appears as m·ẍ in the equation of motion.<br><b>↑ Larger m:</b> Harder to accelerate — needs more control force for the same response speed.' },
+  'plant-b':    { t: 'b — Damper (N·s/m)',        d: '<b>Velocity-proportional damping force = b·ẋ.</b><br><b>↑ Higher b:</b> More natural dissipation — less oscillation, easier to control.<br><b>↓ Lower b:</b> More oscillatory system — the controller must supply virtual damping.' },
+  'plant-k':    { t: 'k — Spring stiffness (N/m)', d: '<b>Restoring force = k·x.</b> Sets natural frequency ωₙ = √(k/m).<br><b>↑ Stiffer k:</b> Higher natural frequency and stronger restoring force — faster natural dynamics.' },
+};
+
+function _injectParamInfo(el) {
+  const info = PARAM_INFO[el.dataset.pi];
+  if (!info) return;
+  const d = document.createElement('details');
+  d.className = 'param-info';
+  d.innerHTML = '<summary>ⓘ ' + info.t + '</summary><div class="param-desc">' + info.d + '</div>';
+  el.after(d);
+}
+
 // ── Pinch zoom: allow only inside Plotly charts, block page-level zoom ───────
 document.body.addEventListener('touchmove', e => {
   if (e.touches.length > 1 && !e.target.closest('.js-plotly-plot')) {
@@ -1459,6 +1573,8 @@ window.addEventListener('load', () => {
   document.querySelectorAll('[id^="chart-"]').forEach(el => {
     if (el.style.height) el.dataset.origH = el.style.height;
   });
+  // Inject param-info dropdowns for all static sliders
+  document.querySelectorAll('input[data-pi]').forEach(_injectParamInfo);
   pidRun();
 });
 </script>
