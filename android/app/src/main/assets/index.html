@@ -768,6 +768,7 @@ const PARAM_INFO = {
 };
 
 function _injectParamInfo(el) {
+  if (el.nextElementSibling && el.nextElementSibling.classList.contains('param-info')) return;
   const info = PARAM_INFO[el.dataset.pi];
   if (!info) return;
   const d = document.createElement('details');
@@ -848,8 +849,11 @@ function pidRun() {
     const { num: cNum, den: cDen } = CS.pidTF(pid.Kp, pid.Ki, pid.Kd, pid.N);
     const { olNum, olDen, clNum, clDen } = CS.buildOLCL(pNum, pDen, cNum, cDen);
 
-    // RK4 needs dt*N < 2.5 to stay inside stability region for the filter pole at -N
-    const nPts = Math.max(800, Math.ceil(pid.tEnd * pid.N / 2.0) + 1);
+    // Adaptive nPts: RK4 stability requires dt * |λ_max| < ~2.0.
+    // Cauchy bound: |λ_max| ≤ 1 + max|clDen[i]/clDen[0]| (conservative but reliable).
+    const _d0 = clDen[0];
+    const _fastPole = 1 + clDen.slice(1).reduce((m, c) => Math.max(m, Math.abs(c / _d0)), 0);
+    const nPts = Math.min(20000, Math.max(800, Math.ceil(pid.tEnd * _fastPole / 1.5) + 1));
     const { t, y } = CS.stepResponse(clNum, clDen, pid.tEnd, nPts);
     const margins = CS.stabilityMargins(olNum, olDen);
     const metrics = CS.performanceMetrics(t, y, pid.ref);
