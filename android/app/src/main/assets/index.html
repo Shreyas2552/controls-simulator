@@ -869,7 +869,7 @@ function pidRender() {
   if (!_pidResult) return;
   const { t, y, tRef, margins, metrics, olNum, olDen, clNum, clDen } = _pidResult;
 
-  if (_pidActiveTab === 0) renderStep(t, y, tRef, metrics);
+  if (_pidActiveTab === 0) renderStep(t, y, tRef, margins, metrics);
   if (_pidActiveTab === 1) renderBode(olNum, olDen);
   if (_pidActiveTab === 2) renderLocus(olNum, olDen);
   if (_pidActiveTab === 3) renderNyquist(olNum, olDen);
@@ -877,7 +877,7 @@ function pidRender() {
 }
 
 // ── Step Response ───────────────────────────────────────────────────────────
-function renderStep(t, y, tRef, metrics) {
+function renderStep(t, y, tRef, margins, metrics) {
   const traces = [
     { x: t, y: tRef, name: 'Reference', line: { color: '#2196F3', dash: 'dash', width: 1.5 } },
     { x: t, y: y,    name: 'Output y(t)', line: { color: '#4CAF50', width: 2.5 } },
