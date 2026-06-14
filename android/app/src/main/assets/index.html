@@ -848,7 +848,9 @@ function pidRun() {
     const { num: cNum, den: cDen } = CS.pidTF(pid.Kp, pid.Ki, pid.Kd, pid.N);
     const { olNum, olDen, clNum, clDen } = CS.buildOLCL(pNum, pDen, cNum, cDen);
 
-    const { t, y } = CS.stepResponse(clNum, clDen, pid.tEnd, 600);
+    // RK4 needs dt*N < 2.5 to stay inside stability region for the filter pole at -N
+    const nPts = Math.max(800, Math.ceil(pid.tEnd * pid.N / 2.0) + 1);
+    const { t, y } = CS.stepResponse(clNum, clDen, pid.tEnd, nPts);
     const margins = CS.stabilityMargins(olNum, olDen);
     const metrics = CS.performanceMetrics(t, y, pid.ref);
 
